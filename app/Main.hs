@@ -12,5 +12,5 @@ main = do
     args <- getArgs
     filecontents <- readFile $ head args
     let tokens = scanTokens filecontents
-    print $ fst $ runState (semantic (parser tokens)) empty
+    print $ fst $ runState (semantic (parser tokens)) []
     print $ parser tokens

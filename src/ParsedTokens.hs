@@ -9,38 +9,50 @@ class ToStr a where
     -- Funcion que convierte en string un token parseado
     -- donde el entero es el número de tabs
     toStr :: a -> Int -> String
-    traversal :: a -> SymbolTable -> SymbolTableState
+    traversal :: a -> SymbolTableState
 
 -- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
 -- Retorna Left si ocurrió un error
-varsToSTable :: [Variables] -> SymbolTable -> SymbolTable -> State SymbolTable (Either String SymbolTable)
-varsToSTable [] auxTable sTable = state(\s -> (Right auxTable, sTable))
-varsToSTable ((Variables inits tipo):vars) auxTable sTable =
-    let (ret, sTable') = runState (initsToSTable inits tipo auxTable sTable) H.empty in (
-        case ret of
-            Left err -> state(\s -> (ret, sTable'))
-            Right auxTable' -> varsToSTable vars auxTable' sTable'
-    )
+varsToSTable :: [Variables] -> SymbolTable -> SymbolTableState
+varsToSTable [] auxTable  = do
+    pushSTable auxTable
+varsToSTable ((Variables inits tipo):vars) auxTable = do
+    ret <- initsToSTable inits tipo auxTable
+    (case ret of
+                Left err -> return ret
+                Right auxTable' -> varsToSTable vars auxTable')
+    -- let (ret, s') = runState (initsToSTable inits tipo auxTable sTable) [] in (
+    --     case ret of
+    --         Left err -> return ret
+    --         Right auxTable' -> varsToSTable vars auxTable' (head s')
+    -- )
 
 -- Función que recibe una lista de inicializacion de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
 -- Retorna Left si ocurrió un error
-initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTable -> State SymbolTable (Either String SymbolTable)
-initsToSTable [] _ auxTable sTable = state(\s -> (Right auxTable, sTable))
-initsToSTable ((Asignacion token _):xs) tipo auxTable sTable
-    | H.member (tkToStr token) sTable = state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), H.empty))
-    | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable) (H.insert (tkToStr token) (tipoToStr tipo) sTable)
+initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
+-- initsToSTable [] _ auxTable sTable = state(\s -> (Right auxTable, sTable))
+initsToSTable [] _ auxTable = pushSTable auxTable
+initsToSTable ((Asignacion token _):xs) tipo auxTable
+    | H.member (tkToStr token) auxTable = state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), []))
+    | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
 
 -- Función que recibe una lista de instrucciones y las recorre 
-traverseList :: [Instruccion] -> SymbolTable ->  State SymbolTable (Either String SymbolTable)   
-traverseList [] sTable = state(\s -> (Right sTable, sTable))
-traverseList (x:xs) sTable =
-    let (ret, sTable') = runState (traversal x sTable) H.empty in (
-        case ret of
-            Left err -> state(\s -> (ret, sTable'))
-            Right auxTable' -> traverseList xs sTable'
-    ) 
+traverseList :: [Instruccion] ->  SymbolTableState
+traverseList [] = pushSTable H.empty
+traverseList (x:xs) = do
+    ret <- traversal x
+    (case ret of
+                Left err -> state(\s -> (ret, s))
+                Right auxTable' -> do
+                    traverseList xs)
+    -- let (ret, s') = runState (traversal x sTable) [] in (
+    --     case ret of
+    --         Left err -> state(\s -> (ret, s))
+    --         Right auxTable' -> do
+    --             traverseList xs (head $ tail s')
+    -- ) 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 printLista tabs xs = concatMap (\x -> toStr x (tabs+2)) xs
@@ -53,7 +65,7 @@ data Programa
 
 instance ToStr Programa where
     toStr (Programa incalcance) tabs = toStr incalcance tabs
-    traversal (Programa incalcance) sTable = traversal incalcance sTable
+    traversal (Programa incalcance)= traversal incalcance
 
 -- Para la declariacion o inicializacion de una variable
 data Inicializacion
@@ -300,7 +312,8 @@ instance ToStr Instruccion where
 
     traversal (IncAlcanceInstr instr) = traversal instr
 
-    traversal (EmptyInstr) = \sTable -> (state(\s -> (Right sTable, sTable)))
+    -- traversal (EmptyInstr) = \sTable -> (state(\s -> (Right sTable, s)))
+    traversal (EmptyInstr) = state(\s -> (Right (head s), s))
 
 
 -- Instrucción de If
@@ -378,19 +391,21 @@ instance ToStr IncAlcanceInstr where
         printLista tabs instruccion
 
     -- Para recorrer arbol
-    -- traversal (ConDeclaracion tkobject vars insts) = do
-    --     declaraciones <- varsToSTable vars H.empty
-    --     return declaraciones
-    --     traverseList insts
-    traversal (ConDeclaracion tkobject vars insts) sTable =
-        let (ret, sTable') = runState (varsToSTable vars H.empty sTable) H.empty in (
-            case ret of
-                Left err -> state(\s -> (ret, sTable'))
-                Right auxTable' -> traverseList insts sTable'
-        )
+    traversal (ConDeclaracion tkobject vars insts) = do
+        ret <- varsToSTable vars H.empty
+        (case ret of
+                    Left err -> state(\s -> (ret, s))
+                    Right auxTable' -> do
+                        traverseList insts)
+        -- let (ret, s') = runState (varsToSTable vars H.empty sTable) [] in (
+        --     case ret of
+        --         Left err -> state(\s -> (ret, s))
+        --         Right auxTable' -> do
+        --             traverseList insts (head s')
+        -- )
 
-    traversal (SinDeclaracion tkobject insts) sTable = 
-        traverseList insts sTable
+    -- traversal (SinDeclaracion tkobject insts) sTable = 
+    --     traverseList insts sTable
         
 
 -- Instrucción de Punto

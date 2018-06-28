@@ -10,7 +10,8 @@ import Control.Monad.State
 -- recorre el árbol
 semantic :: (ToStr a) => Parsed a -> SymbolTableState
 semantic (Failed err) = state(\s -> (Left err, s))
-semantic (Ok parsed) = traversal parsed empty
+semantic (Ok parsed) = do
+    traversal parsed
 
 -- traversal :: (ToStr a) => Parsed a -> SymbolTable -> SymbolTableState
 -- traversal tree@(Failed err) = \sTable -> state(\s -> (Left err, sTable))
