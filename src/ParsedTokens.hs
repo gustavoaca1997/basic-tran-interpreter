@@ -11,15 +11,26 @@ class ToStr a where
     toStr :: a -> Int -> String
     traversal :: a -> SymbolTable -> SymbolTableState
 
--- Función que a partir de una lista de declaraciones, crea una nueva
--- tabla de hash que representa el nuevo scope
+-- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
+-- y la tabla de símbolos correspondiente solo al scope actual.
+-- Retorna Left si ocurrió un error
 varsToSTable :: [Variables] -> SymbolTable -> SymbolTable -> State SymbolTable (Either String SymbolTable)
-varsToSTable [] _ sTable = state(\s -> (Right sTable, sTable))
-varsToSTable ((Variables ((Asignacion token _):xs) tipo):vars) auxTable sTable =
-    if (H.member (tkToStr token) auxTable) then
-        varsToSTable vars (H.insert (tkToStr token) (tipoToStr tipo) auxTable) (H.insert (tkToStr token) (tipoToStr tipo) sTable)
-        else
-            state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), H.empty))
+varsToSTable [] auxTable sTable = state(\s -> (Right auxTable, sTable))
+varsToSTable ((Variables inits tipo):vars) auxTable sTable =
+    let (ret, sTable') = runState (varsToSTable' inits tipo auxTable sTable) H.empty in (
+        case ret of
+            Left err -> state(\s -> (ret, sTable'))
+            Right auxTable' -> varsToSTable vars auxTable' sTable'
+    )
+
+-- Función que recibe una lista de inicializacion de variables y dos estados: la tabla de símbolos global,
+-- y la tabla de símbolos correspondiente solo al scope actual.
+-- Retorna Left si ocurrió un error
+initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTable -> State SymbolTable (Either String SymbolTable)
+initsToSTable [] _ auxTable sTable = state(\s -> (Right auxTable, sTable))
+initsToSTable ((Asignacion token _):xs) tipo auxTable sTable
+    | H.member (tkToStr token) sTable = state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), H.empty))
+    | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable) (H.insert (tkToStr token) (tipoToStr tipo) sTable)
 
 traverseList :: [Instruccion] -> SymbolTable ->  State SymbolTable (Either String SymbolTable)   
 traverseList [] = \sTable -> (state(\s -> (Right sTable, sTable)))
