@@ -2,7 +2,7 @@ module ParsedTokens where
 import Lex
 import SymbolTable
 import Control.Monad.State
-import Data.HashMap.Lazy
+import qualified Data.HashMap.Lazy as H
 
 -- Typeclass para poder imprimir el Arból Sintáctica Abstracto
 class ToStr a where
@@ -13,12 +13,17 @@ class ToStr a where
 
 -- Función que a partir de una lista de declaraciones, crea una nueva
 -- tabla de hash que representa el nuevo scope
-varsToSTable :: [Variables] -> SymbolTable -> State SymbolTable (Either String SymbolTable)
-varsToSTable [] sTable = state(\s -> (Right sTable, sTable))
-varsToSTable ((Variables ((Asignacion token _):xs) tipo):vars) sTable =
-    -- insert (tkToStr token) (tipoToStr tipo)
-    -- varsToSTable vars
-    varsToSTable vars $ insert (tkToStr token) (tipoToStr tipo) sTable
+varsToSTable :: [Variables] -> SymbolTable -> SymbolTable -> State SymbolTable (Either String SymbolTable)
+varsToSTable [] _ sTable = state(\s -> (Right sTable, sTable))
+varsToSTable ((Variables ((Asignacion token _):xs) tipo):vars) auxTable sTable =
+    if (H.member (tkToStr token) auxTable) then
+        varsToSTable vars (H.insert (tkToStr token) (tipoToStr tipo) auxTable) (H.insert (tkToStr token) (tipoToStr tipo) sTable)
+        else
+            state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), H.empty))
+
+traverseList :: [Instruccion] -> SymbolTable ->  State SymbolTable (Either String SymbolTable)   
+traverseList [] = \sTable -> (state(\s -> (Right sTable, sTable)))
+traverseList (x:xs) = traversal x
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 printLista tabs xs = concatMap (\x -> toStr x (tabs+2)) xs
@@ -276,6 +281,9 @@ instance ToStr Instruccion where
 
     toStr (EmptyInstr) tabs = ""
 
+    traversal (IncAlcanceInstr instr) = traversal instr
+
+    traversal (EmptyInstr) = \sTable -> (state(\s -> (Right sTable, sTable)))
 
 
 -- Instrucción de If
@@ -354,8 +362,13 @@ instance ToStr IncAlcanceInstr where
 
     -- Para recorrer arbol
     traversal (ConDeclaracion tkobject vars insts) = do
-            declaraciones <- varsToSTable vars
-            return declaraciones
+        declaraciones <- varsToSTable vars H.empty
+        return declaraciones
+        -- traverseList insts
+
+    traversal (SinDeclaracion tkobject insts) = 
+        traverseList insts
+        
 
 -- Instrucción de Punto
 data PuntoInstr =
