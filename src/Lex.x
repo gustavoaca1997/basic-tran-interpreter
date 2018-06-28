@@ -167,6 +167,14 @@ instance Show TkObject where
   -- Ejm: TkWhile 3 2
   show (TkObject tk s (AlexPn _ l c)) = s ++ " " ++ show l ++ " " ++ show c
 
+-- Funcion que retorna el string que representa el token
+tkToStr :: TkObject -> String
+tkToStr (TkObject _ str _) = str
+
+
+-- Funcion que retorna la posición del token
+tkPos :: TkObject -> (Int, Int)
+tkPos (TkObject _ _ (AlexPn _ l c)) = (l, c)
 ------------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------
 

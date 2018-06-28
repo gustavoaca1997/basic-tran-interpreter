@@ -30,6 +30,8 @@ library
       Parsed
       ParsedTokens
       Parser
+      Semantic
+      SymbolTable
   other-modules:
       Paths_BasicTran_Interpreter
   hs-source-dirs:
@@ -51,6 +53,8 @@ executable BasicTran-Interpreter-exe
   build-depends:
       BasicTran-Interpreter
     , base >=4.7 && <5
+    , mtl
+    , unordered-containers
   default-language: Haskell2010
 
 test-suite BasicTran-Interpreter-test

@@ -1,11 +1,24 @@
 module ParsedTokens where
 import Lex
+import SymbolTable
+import Control.Monad.State
+import Data.HashMap.Lazy
 
 -- Typeclass para poder imprimir el Arból Sintáctica Abstracto
 class ToStr a where
     -- Funcion que convierte en string un token parseado
     -- donde el entero es el número de tabs
     toStr :: a -> Int -> String
+    traversal :: a -> SymbolTable -> SymbolTableState
+
+-- Función que a partir de una lista de declaraciones, crea una nueva
+-- tabla de hash que representa el nuevo scope
+varsToSTable :: [Variables] -> SymbolTable -> State SymbolTable (Either String SymbolTable)
+varsToSTable [] sTable = state(\s -> (Right sTable, sTable))
+varsToSTable ((Variables ((Asignacion token _):xs) tipo):vars) sTable =
+    -- insert (tkToStr token) (tipoToStr tipo)
+    -- varsToSTable vars
+    varsToSTable vars $ insert (tkToStr token) (tipoToStr tipo) sTable
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 printLista tabs xs = concatMap (\x -> toStr x (tabs+2)) xs
@@ -18,6 +31,7 @@ data Programa
 
 instance ToStr Programa where
     toStr (Programa incalcance) tabs = toStr incalcance tabs
+    traversal (Programa incalcance) sTable = traversal incalcance sTable
 
 -- Para la declariacion o inicializacion de una variable
 data Inicializacion
@@ -42,6 +56,11 @@ instance ToStr Tipo where
     toStr (TipoArreglo obj exparit tipo) tabs = putTabs tabs "TIPO ARREGLO" ++
         putTabs (tabs+2) "tamaño:" ++ toStr exparit (tabs+2) ++
         putTabs (tabs+2) "tipo de los elementos:" ++ toStr tipo (tabs+2)
+
+-- Funcion que retorna el string del tipo
+tipoToStr :: Tipo -> String
+tipoToStr (TipoPrimitivo obj) = tkToStr obj
+tipoToStr (TipoArreglo obj exparit tipo) = "array " ++ tipoToStr tipo
 
 -- Variables
 data Variables =
@@ -325,12 +344,18 @@ data IncAlcanceInstr =
     deriving Show
 
 instance ToStr IncAlcanceInstr where
+    -- Para imprimir arbol
     toStr (ConDeclaracion _ ys instruccion) tabs = putTabs tabs "INC_ALCANCE" ++
         printLista tabs ys ++
         printLista tabs instruccion
 
     toStr (SinDeclaracion _ instruccion) tabs = putTabs tabs "INC_ALCANCE" ++
         printLista tabs instruccion
+
+    -- Para recorrer arbol
+    traversal (ConDeclaracion tkobject vars insts) = do
+            declaraciones <- varsToSTable vars
+            return declaraciones
 
 -- Instrucción de Punto
 data PuntoInstr =
