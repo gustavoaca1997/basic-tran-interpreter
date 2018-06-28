@@ -17,7 +17,7 @@ class ToStr a where
 varsToSTable :: [Variables] -> SymbolTable -> SymbolTable -> State SymbolTable (Either String SymbolTable)
 varsToSTable [] auxTable sTable = state(\s -> (Right auxTable, sTable))
 varsToSTable ((Variables inits tipo):vars) auxTable sTable =
-    let (ret, sTable') = runState (varsToSTable' inits tipo auxTable sTable) H.empty in (
+    let (ret, sTable') = runState (initsToSTable inits tipo auxTable sTable) H.empty in (
         case ret of
             Left err -> state(\s -> (ret, sTable'))
             Right auxTable' -> varsToSTable vars auxTable' sTable'
@@ -32,9 +32,15 @@ initsToSTable ((Asignacion token _):xs) tipo auxTable sTable
     | H.member (tkToStr token) sTable = state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), H.empty))
     | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable) (H.insert (tkToStr token) (tipoToStr tipo) sTable)
 
+-- Función que recibe una lista de instrucciones y las recorre 
 traverseList :: [Instruccion] -> SymbolTable ->  State SymbolTable (Either String SymbolTable)   
-traverseList [] = \sTable -> (state(\s -> (Right sTable, sTable)))
-traverseList (x:xs) = traversal x
+traverseList [] sTable = state(\s -> (Right sTable, sTable))
+traverseList (x:xs) sTable =
+    let (ret, sTable') = runState (traversal x sTable) H.empty in (
+        case ret of
+            Left err -> state(\s -> (ret, sTable'))
+            Right auxTable' -> traverseList xs sTable'
+    ) 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 printLista tabs xs = concatMap (\x -> toStr x (tabs+2)) xs
@@ -372,13 +378,19 @@ instance ToStr IncAlcanceInstr where
         printLista tabs instruccion
 
     -- Para recorrer arbol
-    traversal (ConDeclaracion tkobject vars insts) = do
-        declaraciones <- varsToSTable vars H.empty
-        return declaraciones
-        -- traverseList insts
+    -- traversal (ConDeclaracion tkobject vars insts) = do
+    --     declaraciones <- varsToSTable vars H.empty
+    --     return declaraciones
+    --     traverseList insts
+    traversal (ConDeclaracion tkobject vars insts) sTable =
+        let (ret, sTable') = runState (varsToSTable vars H.empty sTable) H.empty in (
+            case ret of
+                Left err -> state(\s -> (ret, sTable'))
+                Right auxTable' -> traverseList insts sTable'
+        )
 
-    traversal (SinDeclaracion tkobject insts) = 
-        traverseList insts
+    traversal (SinDeclaracion tkobject insts) sTable = 
+        traverseList insts sTable
         
 
 -- Instrucción de Punto
