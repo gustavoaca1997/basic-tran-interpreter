@@ -25,7 +25,7 @@ inSTable key l c =
             let instable = H.member key (head s) in (
                 case instable of
                     True -> (Right (head s), s)
-                    False -> (Left (key ++ ": variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
+                    False -> (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
             )
         )
     )
@@ -37,11 +37,11 @@ checkType key tipo l c =
         \s -> (
             let val = H.lookup key (head s) in (
                 case val of
-                    Nothing -> (Left (key ++ ": variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
+                    Nothing -> (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
                     Just val' -> if val' == tipo then
                         (Right (head s), s)
                         else
-                            (Left (key ++ ": variable de tipo " ++ val' ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )    
+                            (Left ("'" ++ key ++ "': variable de tipo " ++ val' ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )    
             )
         )
     )

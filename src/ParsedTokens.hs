@@ -38,13 +38,13 @@ initsToSTable [] _ auxTable = pushSTable auxTable
 -- Si se inicializa la variable con un valor
 initsToSTable ((Asignacion token _):xs) tipo auxTable
     | H.member (tkToStr token) auxTable = 
-        state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), [H.empty]))
+        state(\s -> (Left ("'" ++ (tkToStr token) ++ "' redeclarada en la posicion " ++ show (tkPos token) ++ ": error semantico"), [H.empty]))
     | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
 
 -- Si solo se declara la variable
 initsToSTable ((Declaracion token):xs) tipo auxTable
     | H.member (tkToStr token) auxTable = 
-        state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), [H.empty]))
+        state(\s -> (Left ("'" ++ (tkToStr token) ++ "' redeclarada en la posicion " ++ show (tkPos token) ++ ": error semantico"), [H.empty]))
     | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
 
 -- Función que recibe una lista de instrucciones y las recorre 
@@ -85,7 +85,7 @@ instance ToStr Programa where
     traversal (Programa incalcance)= traversal incalcance
 
 --------------------------------------------------------------------
--- Para la declariacion o inicializacion de una variable
+-- Para la declariacion, inicializacion o asignacion de una variable
 data Inicializacion
     = Asignacion TkObject Expresion -- id <- n, id <- 2 + x
     | Declaracion TkObject              -- id
@@ -100,11 +100,17 @@ instance ToStr Inicializacion where
     --------------------------------------------------------------------
     -- Funcion para recorrer el arbol y analizarlo semanticamente
     traversal (Asignacion tkobject expresion) = 
-        let (l,c) = tkPos (tkobject) in (
-            do
-                inSTable (tkToStr tkobject) l c
-                traversal expresion
-        )
+        case expresion of
+            ExpArit _ -> (let (l,c) = tkPos (tkobject) in (
+                            do
+                                ret <- inSTable (tkToStr tkobject) l c
+                                (case ret of
+                                    Left err -> return ret
+                                    Right _ ->
+                                        traversal expresion)
+                        ))
+            _ -> do
+                return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr tkobject) ++ "': error semantico"
 
     traversal (Declaracion tkobject) =
         let (l,c) = tkPos (tkobject) in (
@@ -167,8 +173,8 @@ instance ToStr Expresion where
         traversal x
 
 -------------------------------------------------------------------------------
-
 -- Expresion Aritmética
+
 -- Funcion que analiza semanticamente operaciones aritmeticas binarias
 analizarOpBinArit :: ExpArit -> TkObject -> ExpArit -> SymbolTableState
 analizarOpBinArit exparit1 token exparit2 = do
@@ -180,7 +186,6 @@ analizarOpBinArit exparit1 token exparit2 = do
             -- Analizamos semanticamente la segunda expresion
             traversal exparit2)
 
--------------------------------------------------------------------------------
 data ExpArit =
     Suma ExpArit TkObject ExpArit
     | Resta ExpArit TkObject ExpArit
@@ -504,7 +509,7 @@ instance ToStr IncAlcanceInstr where
                     Right auxTable' -> do
                         traverseList insts)
 
-    traversal (SinDeclaracion tkobject insts) = 
+    traversal (SinDeclaracion tkobject insts) = do
         traverseList insts
         
 
