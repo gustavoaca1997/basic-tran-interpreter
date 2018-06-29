@@ -10,8 +10,11 @@ class ToStr a where
     -- donde el entero es el número de tabs
     toStr :: a -> Int -> String
     traversal :: a -> SymbolTableState
+
+
 ----------------------------------------------------------------------------
--- Funciones necesarias para el analisis semantico
+--------------------FUNCIONES PARA EL ANALIZADOR SEMANTICO -----------------
+----------------------------------------------------------------------------
 
 -- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -54,11 +57,24 @@ traverseList (x:xs) = do
                 Right auxTable' -> do
                     popSTable
                     traverseList xs)
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+----------------------------------------------------------------------------
+--------------------FUNCIONES PARA IMPRIMIR EL AST -------------------------
+----------------------------------------------------------------------------
+-- Funcion para imprimir listas de tokens
+printLista :: (ToStr a) => Int -> [a] -> String
 printLista tabs xs = concatMap (\x -> toStr x (tabs+2)) xs
 
--- Tipos de datos a retornar
+-- Funcion para indentar
+putTabs :: Int -> String -> String
+putTabs tabs str = "\n" ++ (replicate (4*tabs) ' ') ++ str
+
+
+----------------------------------------------------------------------------
+-------------------------- TOKENS PARSEADOS --------------------------------
+----------------------------------------------------------------------------
+
 -- Variable inicial
 data Programa
     =  Programa IncAlcanceInstr
@@ -506,6 +522,4 @@ instance ToStr PuntoInstr where
         putTabs (tabs+2) "expresion:" ++ toStr expresion (tabs+2)
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Funcion para indentar
-putTabs :: Int -> String -> String
-putTabs tabs str = "\n" ++ (replicate (4*tabs) ' ') ++ str
+
