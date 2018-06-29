@@ -13,3 +13,16 @@ pushSTable sTable' =
     state (
         \s -> ((Right sTable'), (sTable' `H.union` (head s)):s)
     )
+
+-- Función que chequea si na variable está definida en el scope actual
+inSTable :: String -> Int -> Int -> SymbolTableState
+inSTable key l c =
+    state (
+        \s -> (
+            let instable = H.member key (head s) in (
+                case instable of
+                    True -> (Right (head s), s)
+                    False -> (Left (key ++ ": variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
+            )
+        )
+    )

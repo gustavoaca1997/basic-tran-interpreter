@@ -35,7 +35,7 @@ initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
 -- initsToSTable [] _ auxTable sTable = state(\s -> (Right auxTable, sTable))
 initsToSTable [] _ auxTable = pushSTable auxTable
 initsToSTable ((Asignacion token _):xs) tipo auxTable
-    | H.member (tkToStr token) auxTable = state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), []))
+    | H.member (tkToStr token) auxTable = state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), [H.empty]))
     | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
 
 -- Función que recibe una lista de instrucciones y las recorre 
@@ -78,6 +78,12 @@ instance ToStr Inicializacion where
         putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj) ++ toStr exp (tabs+2)
     toStr (Declaracion obj) tabs = putTabs tabs "DECLARACION" ++
         putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj)
+
+    traversal (Asignacion tkobject expresion) = 
+        let (l,c) = tkPos (tkobject) in (
+            do
+                inSTable (tkToStr tkobject) l c
+        )
 
 -- Tipos de datos
 data Tipo =
@@ -310,9 +316,10 @@ instance ToStr Instruccion where
 
     toStr (EmptyInstr) tabs = ""
 
+    traversal (AsignacionInstr x) = traversal x
+
     traversal (IncAlcanceInstr instr) = traversal instr
 
-    -- traversal (EmptyInstr) = \sTable -> (state(\s -> (Right sTable, s)))
     traversal (EmptyInstr) = state(\s -> (Right (head s), s))
 
 
