@@ -136,19 +136,25 @@ instance ToStr Inicializacion where
     toStr (Declaracion obj) tabs = putTabs tabs "DECLARACION" ++
         putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj)
     --------------------------------------------------------------------
-    -- Funcion para recorrer el arbol y analizarlo semanticamente
-    traversal (Asignacion tkobject expresion) = 
-        case expresion of
-            ExpArit _ -> (let (l,c) = tkPos (tkobject) in (
-                            do
-                                ret <- inSTable (tkToStr tkobject) l c
-                                (case ret of
-                                    Left err -> return ret
-                                    Right _ ->
-                                        traversal expresion)
-                        ))
-            _ -> do
-                return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr tkobject) ++ "' en la posicion " ++ show(tkPos tkobject) ++ ": error semantico"
+    traversal (Asignacion token expresion) =
+        let (l,c) = tkPos (token) in (
+            do
+                -- Vemos si la variable esta declarada
+                ret <- inSTable (tkToStr token) l c
+                (case ret of
+                    Left err -> return ret
+                    Right _ ->
+                        -- Ahora chequeamos que el tipo de datos
+                        -- coincida con la expresion
+                        do
+                            checktype <- (case expresion of
+                                ExpArit _ -> checkType (tkToStr token) "int" l c
+                                ExpBool _ -> checkType (tkToStr token) "bool" l c
+                                ExpChar _ -> checkType (tkToStr token) "char" l c)
+                            (case checktype of
+                                Left err -> return checktype
+                                Right _ ->
+                                    traversal expresion)))
 
     traversal (Declaracion tkobject) =
         let (l,c) = tkPos (tkobject) in (
@@ -208,6 +214,9 @@ instance ToStr Expresion where
     
     -- Expresion Aritmetica
     traversal (ExpArit x) = do
+        traversal x
+
+    traversal (ExpChar x) = do
         traversal x
 
 -------------------------------------------------------------------------------
@@ -336,6 +345,7 @@ instance ToStr ExpRel where
     toStr (Distinto exparit1 obj exparit2) tabs = (putTabs tabs "DISTINTO") ++ (toStr exparit1 (tabs+2)) ++
         (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
 
+------------------------------------------------------------------------------------
 -- Expresión Booleana/Lógica
 data ExpBool =
     Relacion ExpRel -- 2 + n <= x
@@ -347,6 +357,8 @@ data ExpBool =
     deriving Show
 
 instance ToStr ExpBool where
+    ------------------------------------------------------------------------------------
+    -- Para imprimir el AST
     toStr (Relacion exprel) tabs = putTabs tabs "RELACION" ++ toStr exprel (tabs+2)
 
     toStr (OperadorBoolBin expbool1 obj expbool2) tabs = putTabs tabs "OPERADOR_BOOL_BIN" ++
@@ -362,6 +374,10 @@ instance ToStr ExpBool where
     toStr (IndexArrayBool indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
         toStr indexarray (tabs+2)
 
+    ------------------------------------------------------------------------------------
+    -- Para analizar semanticamente
+
+------------------------------------------------------------------------------------
 -- Expresion de caracteres
 data ExpChar =
     SiguienteChar ExpChar TkObject
@@ -372,6 +388,8 @@ data ExpChar =
     deriving Show
 
 instance ToStr ExpChar where
+    ------------------------------------------------------------------------------------
+    -- Para imprimir AST
     toStr (SiguienteChar expchar obj) tabs = putTabs tabs "SIG_CHAR" ++
         toStr expchar (tabs+2) ++
         putTabs (tabs+2) (show obj)
@@ -386,6 +404,28 @@ instance ToStr ExpChar where
 
     toStr (IndexArrayChar indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
         toStr indexarray (tabs+2)
+
+    ------------------------------------------------------------------------------------
+    -- Para analizar semanticamente
+
+    -- Siguiente caracter
+    traversal (SiguienteChar expchar obj) =
+        traversal expchar
+
+    -- Caracter anterior
+    traversal (AnteriorChar expchar obj) =
+        traversal expchar
+
+    -- Identificador
+    traversal (IdChar token) =
+        let (l,c) = tkPos token in (
+            do
+                inSTable (tkToStr token) l c
+                checkType (tkToStr token) "char" l c
+        )
+
+    -- Literal
+    traversal (LitChar token) = state (\s -> (Right (head s), s))
 
 -- Expresion de arreglos
 data ExpArray =
