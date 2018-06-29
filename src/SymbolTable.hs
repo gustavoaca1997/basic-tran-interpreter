@@ -24,15 +24,15 @@ inSTable :: String -> Int -> Int -> SymbolTableState
 inSTable key l c =
     state (
         \s -> (
-            let instable = H.member key (head s) in (
+            let instable = H.lookup key (head s) in (
                 case instable of
-                    True -> (Right "", s)
-                    False -> (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
+                    Just tipo -> (Right tipo, s)
+                    Nothing -> (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
             )
         )
     )
 
--- Funcion que retorna el valor en la tabla de simbolos
+-- Funcion que revisa el valor en la tabla de simbolos
 checkType :: String -> String -> Int -> Int -> SymbolTableState
 checkType key tipo l c =
     state (

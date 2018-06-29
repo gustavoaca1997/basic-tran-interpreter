@@ -84,6 +84,7 @@ not         { TkObject TkNegacion _ _ }
 %left '::'
 %right '$'
 %right '['
+%right '('
 %left NEG
 -- Grammar
 %%
@@ -112,7 +113,7 @@ Tipo : int  { TipoPrimitivo $1 }
 Expresion : ExpArit               { ExpArit $1 }
         | ExpBool                 { ExpBool $1 }
         | ExpChar                 { ExpChar $1 }
-        | ExpArray                { ExpArray $1 }
+        | ExpArray                { ExpArray $1 }              
 
 -- Expresion Arimetica
 ExpArit : ExpArit '+' ExpArit     { Suma $1 $2 $3 }

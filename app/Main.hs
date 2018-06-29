@@ -12,6 +12,7 @@ main = do
     args <- getArgs
     filecontents <- readFile $ head args
     let tokens = scanTokens filecontents
+    print tokens 
     print $ parser tokens
     (case (fst $ runState (semantic (parser tokens)) [empty]) of
         Left err -> putStrLn err

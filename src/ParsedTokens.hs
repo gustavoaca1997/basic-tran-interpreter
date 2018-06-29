@@ -140,18 +140,23 @@ instance ToStr Inicializacion where
                 ret <- inSTable (tkToStr token) l c
                 (case ret of
                     Left err -> return ret
-                    Right _ ->
+                    Right tipo ->
                         -- Ahora chequeamos que el tipo de datos
                         -- coincida con la expresion
                         do
-                            checktype <- (case expresion of
-                                ExpArit _ -> checkType (tkToStr token) "int" l c
-                                ExpBool _ -> checkType (tkToStr token) "bool" l c
-                                ExpChar _ -> checkType (tkToStr token) "char" l c)
-                            (case checktype of
-                                Left err -> return checktype
-                                Right _ ->
-                                    traversal expresion)))
+                            -- checktype <- (case tipo_exp of
+                            --     "int" -> checkType (tkToStr token) "int" l c
+                            --     "bool" -> checkType (tkToStr token) "bool" l c
+                            --     "char" -> checkType (tkToStr token) "char" l c)
+                            -- (case checktype of
+                            --     Left err -> return checktype
+                            --     Right _ ->
+                            --         traversal expresion)))
+                            ret' <- traversal expresion
+                            (case ret' of
+                                Left err -> return ret'
+                                Right tipo_exp -> 
+                                    checkType (tkToStr token) tipo_exp l c)))
 
     -- Declaracion
     traversal (Declaracion tkobject) =
@@ -316,7 +321,6 @@ instance ToStr ExpArit where
         let (l,c) = tkPos token in (
             do
                 inSTable (tkToStr token) l c
-                checkType (tkToStr token) "int" l c
         )
 
 -------------------------------------------------------------------------------
