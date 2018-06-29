@@ -26,7 +26,8 @@ varsToSTable ((Variables inits tipo):vars) auxTable = do
     ret <- initsToSTable inits tipo auxTable
     (case ret of
                 Left err -> return ret
-                Right auxTable' -> varsToSTable vars auxTable')
+                -- Right auxTable' -> varsToSTable vars auxTable')
+                Right _ -> state(\s -> runState (varsToSTable vars (head s)) s))
 
 -- Función que recibe una lista de inicializacion de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -43,7 +44,7 @@ initsToSTable ((Asignacion token expresion):xs) tipo auxTable
         ret <- initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
         (case ret of
             Left err -> return ret
-            Right sTable -> 
+            Right _ -> 
                 -- Chequeamos que la expresion sea del tipo correcto
                 (case expresion of
                     ExpArit _ -> 
@@ -63,7 +64,7 @@ initsToSTable ((Asignacion token expresion):xs) tipo auxTable
                             aciertoDeTipo))
 
     where errorDeTipo = return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr token) ++ "' en la posicion " ++ show(tkPos token) ++ ": error semantico"                            
-          aciertoDeTipo = state $ \s -> (Right $ head s, s)
+          aciertoDeTipo = state $ \s -> (Right $ tipo', s)
           tipo' = tipoToStr tipo
 
 -- Si solo se declara la variable
@@ -79,7 +80,7 @@ traverseList (x:xs) = do
     ret <- traversal x
     (case ret of
                 Left err -> state(\s -> (ret, s))
-                Right auxTable' -> do
+                Right _ -> do
                     popSTable
                     traverseList xs)
 
@@ -308,7 +309,7 @@ instance ToStr ExpArit where
         traversal exparit
 
     -- Literal
-    traversal (LitArit token) = state (\s -> (Right (head s), s))
+    traversal (LitArit token) = state (\s -> (Right "int", s))
 
     -- Identificador
     traversal (IdArit token) = 
@@ -431,7 +432,7 @@ instance ToStr ExpBool where
             checkType (tkToStr token) "bool" l c)
 
     -- Literal
-    traversal (LitBool token) = state (\s -> (Right (head s), s))
+    traversal (LitBool token) = state (\s -> (Right "bool", s))
 
 ------------------------------------------------------------------------------------
 -- Expresion de caracteres
@@ -481,7 +482,7 @@ instance ToStr ExpChar where
         )
 
     -- Literal
-    traversal (LitChar token) = state (\s -> (Right (head s), s))
+    traversal (LitChar token) = state (\s -> (Right "char", s))
 
 -- Expresion de arreglos
 data ExpArray =
@@ -556,7 +557,7 @@ instance ToStr Instruccion where
 
     traversal (IncAlcanceInstr instr) = traversal instr
 
-    traversal (EmptyInstr) = state(\s -> (Right (head s), s))
+    traversal (EmptyInstr) = state(\s -> (Right "", s))
 --------------------------------------------------------------------
 
 -- Instrucción de If
@@ -640,7 +641,7 @@ instance ToStr IncAlcanceInstr where
         ret <- varsToSTable vars H.empty
         (case ret of
                     Left err -> state(\s -> (ret, s))
-                    Right auxTable' -> do
+                    Right _ -> do
                         traverseList insts)
 
     traversal (SinDeclaracion tkobject insts) = do
