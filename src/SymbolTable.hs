@@ -14,6 +14,9 @@ pushSTable sTable' =
         \s -> ((Right sTable'), (sTable' `H.union` (head s)):s)
     )
 
+popSTable :: SymbolTableState
+popSTable = state (\s -> (Right (head s), tail s))
+
 -- Función que chequea si na variable está definida en el scope actual
 inSTable :: String -> Int -> Int -> SymbolTableState
 inSTable key l c =

@@ -46,6 +46,7 @@ traverseList (x:xs) = do
     (case ret of
                 Left err -> state(\s -> (ret, s))
                 Right auxTable' -> do
+                    popSTable
                     traverseList xs)
     -- let (ret, s') = runState (traversal x sTable) [] in (
     --     case ret of
