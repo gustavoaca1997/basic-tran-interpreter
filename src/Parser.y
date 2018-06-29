@@ -82,9 +82,12 @@ not         { TkObject TkNegacion _ _ }
 %left and
 %left not
 %left '::'
+%left '++'
+%left "--"
 %right '$'
 %right '['
 %right '('
+%right '#'
 %left NEG
 -- Grammar
 %%
@@ -105,64 +108,45 @@ Var : var   { $1 }
 Tipo : int  { TipoPrimitivo $1 }
     | char  { TipoPrimitivo $1 }
     | bool  { TipoPrimitivo $1 }
-    | array '[' ExpArit ']' of Tipo { TipoArreglo $1 $3 $6  }
+    | array '[' Expresion ']' of Tipo { TipoArreglo $1 $3 $6  }
 
 
 -------------------------------- EXPRESIONES ----------------------------------
 
-Expresion : ExpArit               { ExpArit $1 }
-        | ExpBool                 { ExpBool $1 }
-        | ExpChar                 { ExpChar $1 }
-        | ExpArray                { ExpArray $1 }              
+Expresion :
+        -- Expresiones aritmeticas
+          Expresion '+' Expresion       { Suma $1 $2 $3 }
+          | Expresion '-' Expresion     { Resta $1 $2 $3 }
+          | Expresion '*' Expresion     { Mult $1 $2 $3 }
+          | Expresion '/' Expresion     { Div $1 $2 $3 }
+          | Expresion '%' Expresion     { Mod $1 $2 $3 }
+          | Menos Expresion %prec NEG   { MenosUnario $1 $2 }
+          | num                         { LitArit $1 }
+        -- Expresiones relacionales
+          | Expresion '<' Expresion     { MenorQue $1 $2 $3 }
+          | Expresion '>' Expresion     { MayorQue $1 $2 $3 }
+          | Expresion '<=' Expresion    { MenorIgualQue $1 $2 $3 }
+          | Expresion '>=' Expresion    { MayorIgualQue $1 $2 $3 }
+          | Expresion '=' Expresion     { Igual $1 $2 $3 }
+          | Expresion '/=' Expresion    { Distinto $1 $2 $3 }
+        -- Expresiones de caracteres
+          | Expresion '++'              { SiguienteChar $1 $2 }
+          | Expresion "--"              { AnteriorChar $1 $2 }
+          | caracter                    { LitChar $1 }
+        -- Expresiones Booleanas
+          | Expresion and Expresion     { OperadorBoolBin $1 $2 $3 }
+          | Expresion or Expresion      { OperadorBoolBin $1 $2 $3 }
+          | not Expresion  %prec NEG    { OperadorBoolUn $1 $2 }
+          | true                        { LitBool $1 }
+          | false                       { LitBool $1 }
 
--- Expresion Arimetica
-ExpArit : ExpArit '+' ExpArit     { Suma $1 $2 $3 }
-        | ExpArit '-' ExpArit     { Resta $1 $2 $3 }
-        | ExpArit '*' ExpArit     { Mult $1 $2 $3 }
-        | ExpArit '/' ExpArit     { Div $1 $2 $3 }
-        | ExpArit '%' ExpArit     { Mod $1 $2 $3 }
-        | Menos ExpArit %prec NEG { MenosUnario $1 $2 }
-        | '(' ExpArit ')'         { $2 }
-        | id                      { IdArit $1 }
-        | num                     { LitArit $1 }
-        | '#' ExpChar             { Ascii $1 $2 }
-        | IndexArray              { IndexArrayArit $1 }
-
-IndexArray:
-        ExpArray '[' ExpArit ']'      { IndexacionArray $1 $3 }
-
-ExpRel : ExpArit '<'  ExpArit     { MenorQue $1 $2 $3 }
-       | ExpArit '>'  ExpArit     { MayorQue $1 $2 $3 }
-       | ExpArit '<=' ExpArit     { MenorIgualQue $1 $2 $3 }
-       | ExpArit '>=' ExpArit     { MayorIgualQue $1 $2 $3 }
-       | ExpArit '='  ExpArit     { Igual $1 $2 $3 }
-       | ExpArit '/=' ExpArit     { Distinto $1 $2 $3 }
-
--- Expresiones Booleanas
-ExpBool : ExpRel                            { Relacion $1 }
-        | ExpBool and ExpBool               { OperadorBoolBin $1 $2 $3 }
-        | ExpBool or ExpBool                { OperadorBoolBin $1 $2 $3 }
-        | not ExpBool  %prec NEG            { OperadorBoolUn $1 $2 }
-        | id                                { IdBool $1 }
-        | true                              { LitBool $1 }
-        | false                              { LitBool $1 }
-        | '(' ExpBool ')'                   { $2 }
-        | IndexArray                        { IndexArrayBool $1 }
-
--- Expresiones con caracteres
-ExpChar : ExpChar '++'          { SiguienteChar $1 $2 }
-        | ExpChar "--"          { AnteriorChar $1 $2 }
-        | '(' ExpChar ')'               { $2 }
-        | id                            { IdChar $1 }
-        | caracter                      { LitChar $1 }
-        | IndexArray                    { IndexArrayChar $1 }
-
--- Expresiones con arreglos
-ExpArray : ExpArray '::' ExpArray       { ConcatenacionArray $1 $2 $3 }
-        | '$' ExpArray                  { ShiftArray $1 $2 }
-        | ExpArray '[' ExpArit ']'      { IndexacionArray $1 $3 }
-        | id                            { IdArray $1 }
-        | '(' ExpArray ')'              { $2 }
+        -- Expresiones con arreglos
+          | Expresion '::' Expresion    { ConcatenacionArray $1 $2 $3 }
+          | '$' Expresion               { ShiftArray $1 $2 }
+          | Expresion '[' Expresion ']' { IndexacionArray $1 $3 }
+          | '#' Expresion               { Ascii $2 }
+          | '(' Expresion ')'           { $2 }
+          | id                          { Ident $1 }
 
 
 Menos : '-'                       { $1 }
@@ -188,33 +172,33 @@ Instruccion : Condicional                                 { IfInstr $1 }
             | PuntoInstr ';'                              { PuntoInstr $1 }
 
             -- Condicionales
-Condicional : If ExpBool '->' Bloque end                       { If $2 $4 }
-            | If ExpBool '->' Bloque otherwise '->' Bloque end { IfOtherwise $2 $4 $7 }
+Condicional : If Expresion '->' Bloque end                       { If $2 $4 }
+            | If Expresion '->' Bloque otherwise '->' Bloque end { IfOtherwise $2 $4 $7 }
 
 -- Iteracion Determinada
-IterDet : For id from ExpArit to ExpArit '->' Bloque end              { For $1 $2 $4 $6 $8 }
-        | For id from ExpArit to ExpArit step ExpArit '->' Bloque end { ForStep $1 $2 $4 $6 $8 $10 }
+IterDet : For id from Expresion to Expresion '->' Bloque end              { For $1 $2 $4 $6 $8 }
+        | For id from Expresion to Expresion step Expresion '->' Bloque end { ForStep $1 $2 $4 $6 $8 $10 }
 
 -- Instrucciones I/O
 IOInstr : Print Expresion           { Print $1 $2 }
         | Read  id                  { Read $1 $2 }
 
 -- Asignacion
-Asignacion : 
+Asignacion :
     id '<-' Expresion                           { Asignacion $1 $3 }
 
 AsignacionIndexArray:
-    ExpArray '[' ExpArit ']' '<-' Expresion           { AsignacionIndexArrayInstr (IndexacionArray $1 $3) $6}
+    Expresion '[' Expresion ']' '<-' Expresion           { AsignacionIndexArrayInstr (IndexacionArray $1 $3) $6}
 
 -- Iteración Indeterminada
-IteracionInd : While ExpBool '->' Bloque end            { WhileInstr $2 $4 }
+IteracionInd : While Expresion '->' Bloque end            { WhileInstr $2 $4 }
 
 -- Alcance
 IncAlcance : With Variables begin Bloque end            { ConDeclaracion $1 $2 $4 }
            | Begin Bloque end                           { SinDeclaracion $1 $2 }
 
 -- Instruccion Punto
-PuntoInstr : id '.' ExpArit                                  { Punto $1 $2 $3  }
+PuntoInstr : id '.' Expresion                                  { Punto $1 $2 $3  }
 
 Begin : begin   { $1 }
 While : while   { $1 }
