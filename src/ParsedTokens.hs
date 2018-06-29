@@ -35,20 +35,6 @@ initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
 -- Si ya no hay variables por analizar
 initsToSTable [] _ auxTable = pushSTable auxTable
 
--- traversal (Asignacion tkobject expresion) = 
---     case expresion of
---         ExpArit _ -> (let (l,c) = tkPos (tkobject) in (
---                         do
---                             ret <- inSTable (tkToStr tkobject) l c
---                             (case ret of
---                                 Left err -> return ret
---                                 Right _ ->
---                                     traversal expresion)
---                     ))
---         _ -> do
---             return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr tkobject) ++ "' en la posicion " ++ show(tkPos tkobject) ++ ": error semantico"
-
-
 -- Si se inicializa la variable con un valor
 initsToSTable ((Asignacion token expresion):xs) tipo auxTable
     | H.member (tkToStr token) auxTable = 
@@ -79,13 +65,14 @@ initsToSTable ((Asignacion token expresion):xs) tipo auxTable
     where errorDeTipo = return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr token) ++ "' en la posicion " ++ show(tkPos token) ++ ": error semantico"                            
           aciertoDeTipo = state $ \s -> (Right $ head s, s)
           tipo' = tipoToStr tipo
+
 -- Si solo se declara la variable
 initsToSTable ((Declaracion token):xs) tipo auxTable
     | H.member (tkToStr token) auxTable = 
         state(\s -> (Left ("'" ++ (tkToStr token) ++ "' redeclarada en la posicion " ++ show (tkPos token) ++ ": error semantico"), [H.empty]))
     | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
 
--- Función que recibe una lista de instrucciones y las recorre 
+-- Función que recibe una lista de instrucciones y las recorre para analizar semanticamente
 traverseList :: [Instruccion] ->  SymbolTableState
 traverseList [] = pushSTable H.empty
 traverseList (x:xs) = do
@@ -119,7 +106,12 @@ data Programa
     deriving Show
 
 instance ToStr Programa where
+    ----------------------------------------------------------------------------
+    -- Para imprimir el AST
     toStr (Programa incalcance) tabs = toStr incalcance tabs
+
+    ----------------------------------------------------------------------------
+    -- Para analizar semanticamente el arbol
     traversal (Programa incalcance)= traversal incalcance
 
 --------------------------------------------------------------------
@@ -135,7 +127,11 @@ instance ToStr Inicializacion where
         putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj) ++ toStr exp (tabs+2)
     toStr (Declaracion obj) tabs = putTabs tabs "DECLARACION" ++
         putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj)
+
     --------------------------------------------------------------------
+    -- Funcion para recorrer y analizar semanticamente el arbol
+
+    -- Asignacion
     traversal (Asignacion token expresion) =
         let (l,c) = tkPos (token) in (
             do
@@ -156,6 +152,7 @@ instance ToStr Inicializacion where
                                 Right _ ->
                                     traversal expresion)))
 
+    -- Declaracion
     traversal (Declaracion tkobject) =
         let (l,c) = tkPos (tkobject) in (
             do
@@ -179,6 +176,7 @@ tipoToStr :: Tipo -> String
 tipoToStr (TipoPrimitivo obj) = tkToStr obj
 tipoToStr (TipoArreglo obj exparit tipo) = "array " ++ tipoToStr tipo
 
+-------------------------------------------------------------------------------
 -- Variables
 data Variables =
     Variables [Inicializacion] Tipo
@@ -216,7 +214,12 @@ instance ToStr Expresion where
     traversal (ExpArit x) = do
         traversal x
 
+    -- Expresion de Caracteres
     traversal (ExpChar x) = do
+        traversal x
+
+    -- Expresion Booleana
+    traversal (ExpBool x) = do
         traversal x
 
 -------------------------------------------------------------------------------
@@ -317,6 +320,7 @@ instance ToStr ExpArit where
 
 -------------------------------------------------------------------------------
 -- Expresión Relacional
+
 data ExpRel =
     MenorQue ExpArit TkObject ExpArit
     | MayorQue ExpArit TkObject ExpArit
@@ -327,6 +331,8 @@ data ExpRel =
     deriving Show
 
 instance ToStr ExpRel where
+    -------------------------------------------------------------------------------
+    -- Para imprimir el AST
     toStr (MenorQue exparit1 obj exparit2) tabs = (putTabs tabs "MENOR_QUE") ++ (toStr exparit1 (tabs+2)) ++
         (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
 
@@ -344,6 +350,33 @@ instance ToStr ExpRel where
 
     toStr (Distinto exparit1 obj exparit2) tabs = (putTabs tabs "DISTINTO") ++ (toStr exparit1 (tabs+2)) ++
         (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
+
+    -------------------------------------------------------------------------------
+    -- Para recorrer y analizar semanticamente el arbol
+
+    -- Menor que
+    traversal (MenorQue exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Mayor que
+    traversal (MayorQue exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Menor o igual que
+    traversal (MenorIgualQue exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Mayor o igual que
+    traversal (MayorIgualQue exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Igual que
+    traversal (Igual exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Distinto que
+    traversal (Distinto exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
 
 ------------------------------------------------------------------------------------
 -- Expresión Booleana/Lógica
@@ -376,6 +409,29 @@ instance ToStr ExpBool where
 
     ------------------------------------------------------------------------------------
     -- Para analizar semanticamente
+
+    -- Relacion
+    traversal (Relacion exprel) = traversal exprel
+
+    -- and, or
+    traversal (OperadorBoolBin expbool1 token expbool2) = do
+        ret <- traversal expbool1
+        (case ret of
+            Left err -> return ret
+            Right _ ->
+                traversal expbool2)
+
+    -- not
+    traversal (OperadorBoolUn token expbool) = do
+        traversal expbool
+
+    -- Identificador
+    traversal (IdBool token) = do
+        let (l,c) = tkPos token in (
+            checkType (tkToStr token) "bool" l c)
+
+    -- Literal
+    traversal (LitBool token) = state (\s -> (Right (head s), s))
 
 ------------------------------------------------------------------------------------
 -- Expresion de caracteres
