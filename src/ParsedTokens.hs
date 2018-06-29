@@ -87,6 +87,7 @@ instance ToStr Inicializacion where
         let (l,c) = tkPos (tkobject) in (
             do
                 inSTable (tkToStr tkobject) l c
+                traversal expresion
         )
 
     traversal (Declaracion tkobject) =
@@ -122,7 +123,10 @@ instance ToStr Variables where
         printLista tabs xs ++
         toStr tipo (tabs+2)
 
+-------------------------------------------------------------------------------
 -------------------------------- EXPRESIONES ----------------------------------
+-------------------------------------------------------------------------------
+
 -- Expresion
 data Expresion =
     ExpArit ExpArit
@@ -132,12 +136,35 @@ data Expresion =
     deriving Show
 
 instance ToStr Expresion where
+    -------------------------------------------------------------------------------
+    -- Para imprimir el arbol
     toStr (ExpArit x) tabs = toStr x tabs
     toStr (ExpBool x) tabs = toStr x tabs
     toStr (ExpChar x) tabs = toStr x tabs
     toStr (ExpArray x) tabs = toStr x tabs
 
+    -------------------------------------------------------------------------------
+    -- Para analizar semanticamente
+    
+    -- Expresion Aritmetica
+    traversal (ExpArit x) = do
+        traversal x
+
+-------------------------------------------------------------------------------
+
 -- Expresion Aritmética
+-- Funcion que analiza semanticamente operaciones aritmeticas binarias
+analizarOpBinArit :: ExpArit -> TkObject -> ExpArit -> SymbolTableState
+analizarOpBinArit exparit1 token exparit2 = do
+    -- Analizamos semanticamente la primera expresion
+    ret1 <- traversal exparit1
+    (case ret1 of
+        Left err -> state(\s -> (ret1, s))
+        Right _ -> do
+            -- Analizamos semanticamente la segunda expresion
+            traversal exparit2)
+
+-------------------------------------------------------------------------------
 data ExpArit =
     Suma ExpArit TkObject ExpArit
     | Resta ExpArit TkObject ExpArit
@@ -152,6 +179,8 @@ data ExpArit =
     deriving Show
 
 instance ToStr ExpArit where
+    -------------------------------------------------------------------------------
+    -- Para imprimir arbol
     toStr (Suma exparit1 obj exparit2) tabs = (putTabs tabs "SUMA") ++ (toStr exparit1 (tabs+2)) ++
         (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
 
@@ -180,6 +209,45 @@ instance ToStr ExpArit where
 
     toStr (IdArit obj) tabs = (putTabs tabs "IDENTIFICADOR") ++ (putTabs (tabs+2) (show obj))
 
+    -------------------------------------------------------------------------------
+    -- Para analizar semanticamente
+
+    -- Suma
+    traversal (Suma exparit1 token exparit2) = 
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Resta
+    traversal (Resta exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Multiplicacion
+    traversal (Mult exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Division
+    traversal (Div exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2        
+
+    -- Modulo
+    traversal (Mod exparit1 token exparit2) =
+        analizarOpBinArit exparit1 token exparit2
+
+    -- Menos Unario
+    traversal (MenosUnario operador exparit) =
+        traversal exparit
+
+    -- Literal
+    traversal (LitArit token) = state (\s -> (Right (head s), s))
+
+    -- Identificador
+    traversal (IdArit token) = 
+        let (l,c) = tkPos token in (
+            do
+                inSTable (tkToStr token) l c
+                checkType (tkToStr token) "int" l c
+        )
+
+-------------------------------------------------------------------------------
 -- Expresión Relacional
 data ExpRel =
     MenorQue ExpArit TkObject ExpArit
