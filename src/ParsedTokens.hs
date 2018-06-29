@@ -405,15 +405,9 @@ instance ToStr IncAlcanceInstr where
                     Left err -> state(\s -> (ret, s))
                     Right auxTable' -> do
                         traverseList insts)
-        -- let (ret, s') = runState (varsToSTable vars H.empty sTable) [] in (
-        --     case ret of
-        --         Left err -> state(\s -> (ret, s))
-        --         Right auxTable' -> do
-        --             traverseList insts (head s')
-        -- )
 
-    -- traversal (SinDeclaracion tkobject insts) sTable = 
-    --     traverseList insts sTable
+    traversal (SinDeclaracion tkobject insts) = 
+        traverseList insts
         
 
 -- Instrucción de Punto
