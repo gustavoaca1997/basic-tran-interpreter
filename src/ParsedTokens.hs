@@ -35,12 +35,50 @@ initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
 -- Si ya no hay variables por analizar
 initsToSTable [] _ auxTable = pushSTable auxTable
 
+-- traversal (Asignacion tkobject expresion) = 
+--     case expresion of
+--         ExpArit _ -> (let (l,c) = tkPos (tkobject) in (
+--                         do
+--                             ret <- inSTable (tkToStr tkobject) l c
+--                             (case ret of
+--                                 Left err -> return ret
+--                                 Right _ ->
+--                                     traversal expresion)
+--                     ))
+--         _ -> do
+--             return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr tkobject) ++ "' en la posicion " ++ show(tkPos tkobject) ++ ": error semantico"
+
+
 -- Si se inicializa la variable con un valor
-initsToSTable ((Asignacion token _):xs) tipo auxTable
+initsToSTable ((Asignacion token expresion):xs) tipo auxTable
     | H.member (tkToStr token) auxTable = 
         state(\s -> (Left ("'" ++ (tkToStr token) ++ "' redeclarada en la posicion " ++ show (tkPos token) ++ ": error semantico"), [H.empty]))
-    | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
+    | otherwise = do
+        ret <- initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
+        (case ret of
+            Left err -> return ret
+            Right sTable -> 
+                -- Chequeamos que la expresion sea del tipo correcto
+                (case expresion of
+                    ExpArit _ -> 
+                        if tipo' /= "int" then
+                            errorDeTipo
+                        else
+                            aciertoDeTipo
+                    ExpBool _ ->
+                        if tipo' /= "bool" then
+                            errorDeTipo
+                        else
+                            aciertoDeTipo
+                    ExpChar _ ->
+                        if tipo' /= "char" then
+                            errorDeTipo
+                        else
+                            aciertoDeTipo))
 
+    where errorDeTipo = return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr token) ++ "' en la posicion " ++ show(tkPos token) ++ ": error semantico"                            
+          aciertoDeTipo = state $ \s -> (Right $ head s, s)
+          tipo' = tipoToStr tipo
 -- Si solo se declara la variable
 initsToSTable ((Declaracion token):xs) tipo auxTable
     | H.member (tkToStr token) auxTable = 
@@ -110,7 +148,7 @@ instance ToStr Inicializacion where
                                         traversal expresion)
                         ))
             _ -> do
-                return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr tkobject) ++ "': error semantico"
+                return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr tkobject) ++ "' en la posicion " ++ show(tkPos tkobject) ++ ": error semantico"
 
     traversal (Declaracion tkobject) =
         let (l,c) = tkPos (tkobject) in (

@@ -13,4 +13,6 @@ main = do
     filecontents <- readFile $ head args
     let tokens = scanTokens filecontents
     print $ parser tokens
-    print $ fst $ runState (semantic (parser tokens)) [empty]
+    (case (fst $ runState (semantic (parser tokens)) [empty]) of
+        Left err -> putStrLn err
+        Right _ -> putStrLn "La semantica esta correcta.")
