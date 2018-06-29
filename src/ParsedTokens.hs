@@ -10,6 +10,8 @@ class ToStr a where
     -- donde el entero es el número de tabs
     toStr :: a -> Int -> String
     traversal :: a -> SymbolTableState
+----------------------------------------------------------------------------
+-- Funciones necesarias para el analisis semantico
 
 -- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -22,20 +24,24 @@ varsToSTable ((Variables inits tipo):vars) auxTable = do
     (case ret of
                 Left err -> return ret
                 Right auxTable' -> varsToSTable vars auxTable')
-    -- let (ret, s') = runState (initsToSTable inits tipo auxTable sTable) [] in (
-    --     case ret of
-    --         Left err -> return ret
-    --         Right auxTable' -> varsToSTable vars auxTable' (head s')
-    -- )
 
 -- Función que recibe una lista de inicializacion de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
 -- Retorna Left si ocurrió un error
 initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
--- initsToSTable [] _ auxTable sTable = state(\s -> (Right auxTable, sTable))
+-- Si ya no hay variables por analizar
 initsToSTable [] _ auxTable = pushSTable auxTable
+
+-- Si se inicializa la variable con un valor
 initsToSTable ((Asignacion token _):xs) tipo auxTable
-    | H.member (tkToStr token) auxTable = state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), [H.empty]))
+    | H.member (tkToStr token) auxTable = 
+        state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), [H.empty]))
+    | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
+
+-- Si solo se declara la variable
+initsToSTable ((Declaracion token):xs) tipo auxTable
+    | H.member (tkToStr token) auxTable = 
+        state(\s -> (Left (show token ++ ": semantic error. Redeclaration."), [H.empty]))
     | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
 
 -- Función que recibe una lista de instrucciones y las recorre 
@@ -48,12 +54,6 @@ traverseList (x:xs) = do
                 Right auxTable' -> do
                     popSTable
                     traverseList xs)
-    -- let (ret, s') = runState (traversal x sTable) [] in (
-    --     case ret of
-    --         Left err -> state(\s -> (ret, s))
-    --         Right auxTable' -> do
-    --             traverseList xs (head $ tail s')
-    -- ) 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 printLista tabs xs = concatMap (\x -> toStr x (tabs+2)) xs
@@ -68,24 +68,33 @@ instance ToStr Programa where
     toStr (Programa incalcance) tabs = toStr incalcance tabs
     traversal (Programa incalcance)= traversal incalcance
 
+--------------------------------------------------------------------
 -- Para la declariacion o inicializacion de una variable
 data Inicializacion
     = Asignacion TkObject Expresion -- id <- n, id <- 2 + x
     | Declaracion TkObject              -- id
     deriving Show
-
 instance ToStr Inicializacion where
+    --------------------------------------------------------------------
+    -- Funcion para imprimir el arbol sintactico
     toStr (Asignacion obj exp) tabs = putTabs tabs "ASIGNACION" ++
         putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj) ++ toStr exp (tabs+2)
     toStr (Declaracion obj) tabs = putTabs tabs "DECLARACION" ++
         putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj)
-
+    --------------------------------------------------------------------
+    -- Funcion para recorrer el arbol y analizarlo semanticamente
     traversal (Asignacion tkobject expresion) = 
         let (l,c) = tkPos (tkobject) in (
             do
                 inSTable (tkToStr tkobject) l c
         )
 
+    traversal (Declaracion tkobject) =
+        let (l,c) = tkPos (tkobject) in (
+            do
+                inSTable (tkToStr tkobject) l c
+        )
+--------------------------------------------------------------------
 -- Tipos de datos
 data Tipo =
     TipoPrimitivo TkObject
@@ -293,8 +302,10 @@ data Instruccion =
     -- | Asignacion (ver arriba en inicializacion)
     | EmptyInstr
     deriving Show
-
+--------------------------------------------------------------------
 instance ToStr Instruccion where
+    --------------------------------------------------------------------
+    -- Funcion para imprimir el arbol
     toStr (IfInstr x) tabs = toStr x tabs
 
     toStr (ForInstr x) tabs = putTabs tabs "" ++ toStr x tabs
@@ -316,13 +327,14 @@ instance ToStr Instruccion where
     toStr (PuntoInstr x) tabs = putTabs tabs "" ++ toStr x tabs
 
     toStr (EmptyInstr) tabs = ""
-
+    ----------------------------------------------------------------
+    -- Funcion para recorrer el arbol
     traversal (AsignacionInstr x) = traversal x
 
     traversal (IncAlcanceInstr instr) = traversal instr
 
     traversal (EmptyInstr) = state(\s -> (Right (head s), s))
-
+--------------------------------------------------------------------
 
 -- Instrucción de If
 data IfInstr =
@@ -382,7 +394,7 @@ instance ToStr IOInstr where
     toStr (Read _ variable) tabs = putTabs tabs "INSTRUCCION I/O" ++
         putTabs (tabs+2) "funcion: read" ++
         putTabs (tabs+2) "variable:" ++ show variable
-
+----------------------------------------------------------------------------
 -- Instrucción de Alcance
 data IncAlcanceInstr =
     ConDeclaracion TkObject [Variables] [Instruccion]
@@ -390,6 +402,7 @@ data IncAlcanceInstr =
     deriving Show
 
 instance ToStr IncAlcanceInstr where
+    ----------------------------------------------------------------------------
     -- Para imprimir arbol
     toStr (ConDeclaracion _ ys instruccion) tabs = putTabs tabs "INC_ALCANCE" ++
         printLista tabs ys ++
@@ -398,7 +411,8 @@ instance ToStr IncAlcanceInstr where
     toStr (SinDeclaracion _ instruccion) tabs = putTabs tabs "INC_ALCANCE" ++
         printLista tabs instruccion
 
-    -- Para recorrer arbol
+    ----------------------------------------------------------------------------
+    -- Para recorrer arbol y analizarlo semanticamente
     traversal (ConDeclaracion tkobject vars insts) = do
         ret <- varsToSTable vars H.empty
         (case ret of
