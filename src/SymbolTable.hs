@@ -40,10 +40,10 @@ checkType key tipo l c =
             let val = H.lookup key (head s) in (
                 case val of
                     Nothing -> (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
-                    Just val' -> if val' == tipo then
+                    Just val' -> if (words val' !!0) == tipo then
                         (Right tipo, s)
                         else
-                            (Left ("'" ++ key ++ "': variable de tipo " ++ val' ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )    
+                            (Left ("'" ++ key ++ "': variable de tipo " ++ show val' ++ " no es de tipo " ++ show tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )    
             )
         )
     )

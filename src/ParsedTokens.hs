@@ -4,6 +4,7 @@ import SymbolTable
 import Control.Monad.State
 import qualified Data.HashMap.Lazy as H
 import Data.Either
+import Data.List
 
 -- Typeclass para poder imprimir el Arból Sintáctica Abstracto
 class ToStr a where
@@ -47,9 +48,9 @@ expIsOfType expresion tipo (l, c) = do
         Right exp_tipo1 ->
             -- Chequeamos si es del tipo correcto
             if (words exp_tipo1 !! 0) /= tipo then
-                return $ Left $ "Expresion no es de tipo " ++ tipo ++ " en la posicion " ++ show (l, c) ++ ": error semantico"
+                return $ Left $ "Expresion de tipo " ++ exp_tipo1 ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l, c) ++ ": error semantico"
                 else
-                    return $ Right $ tipo
+                    return $ Right $ exp_tipo1
 
 -- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -179,7 +180,13 @@ instance ToStr Inicializacion where
                             (case ret' of
                                 Left err -> return ret'
                                 Right tipo_exp -> 
-                                    checkType (tkToStr token) tipo_exp l c)))
+                                    do
+                                        ret_id <- inSTable (tkToStr token) l c
+                                        let tipo_id = fromRight "" ret_id in
+                                            if (tipo_id /= tipo_exp) then
+                                                return $ Left $ "Asignacion de " ++ tipo_exp ++ " a " ++ tipo_id ++ " en la posicion " ++ show(l,c) ++ ": error semantico"
+                                                else
+                                                    return $ ret_id)))
 
     -- Declaracion
     traversal (Declaracion tkobject) =
@@ -464,7 +471,7 @@ instance ToStr Expresion where
                     Left err -> return ret2
                     Right exp_tipo2 ->
                         -- Retornamos el tipo del elemento
-                        return $ Right $ show $ tail $ words $ exp_tipo1
+                        return $ Right $ intercalate " " $ tail $ words $ exp_tipo1
 
     -- Concatenacion
     traversal (ConcatenacionArray expresion1 operador expresion2) = do
