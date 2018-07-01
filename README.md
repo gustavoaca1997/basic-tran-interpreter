@@ -43,13 +43,13 @@ Se definió un tipo de dato `Parsed`, el cual instancia a la typeclass `Monad`, 
 
 Se definió la typeclass `ToStr`, para poder imprimir en consola el Árbol Sintáctico Abstracto, la cual es instanciada por los tipos de datos que definen a los tokens analizados.
 
-#### Uso del programa
+## Uso del interpretador
 
-Para compilar:
+Para compilar el interpretador:
 ```bash
 stack build
 ```
-Para ejecutar:
+Para ejecutar el interpretador:
 ```bash
 stack exec BasicTran-Interpreter-exe <archivo>
 ```

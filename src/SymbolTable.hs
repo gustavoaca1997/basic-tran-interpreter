@@ -49,16 +49,6 @@ inSTable key l c =
         )
     )
 
-    -- state (
-    --     \s -> (
-    --         let instable = H.lookup key (head s) in (
-    --             case instable of
-    --                 Just tipo -> (Right tipo, s)
-    --                 Nothing -> (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
-    --         )
-    --     )
-    -- )
-
 -- Funcion que revisa el valor en la tabla de simbolos
 checkType :: String -> String -> Int -> Int -> SymbolTableState
 checkType key tipo l c =
