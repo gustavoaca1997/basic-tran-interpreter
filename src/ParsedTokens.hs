@@ -3,6 +3,7 @@ import Lex
 import SymbolTable
 import Control.Monad.State
 import qualified Data.HashMap.Lazy as H
+import Data.Either
 
 -- Typeclass para poder imprimir el Arból Sintáctica Abstracto
 class ToStr a where
@@ -44,28 +45,14 @@ initsToSTable ((Asignacion token expresion):xs) tipo auxTable
         ret <- initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
         (case ret of
             Left err -> return ret
-            Right _ -> 
-                -- Chequeamos que la expresion sea del tipo correcto
-                -- (case expresion of
-                --     ExpArit _ -> 
-                --         if tipo' /= "int" then
-                --             errorDeTipo
-                --         else
-                --             aciertoDeTipo
-                --     ExpBool _ ->
-                --         if tipo' /= "bool" then
-                --             errorDeTipo
-                --         else
-                --             aciertoDeTipo
-                --     ExpChar _ ->
-                --         if tipo' /= "char" then
-                --             errorDeTipo
-                --         else
-                --             aciertoDeTipo))
-                aciertoDeTipo)
+            Right _ -> let (l,c) = tkPos token in
+                do
+                    -- Chequeamos que la expresion sea del tipo correcto
+                    exp_tipo <- traversal expresion
+                    checkType (tkToStr token) (fromRight "" exp_tipo) l c)
 
     where errorDeTipo = (return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr token) ++ "' en la posicion " ++ show(tkPos token) ++ ": error semantico") :: SymbolTableState
-          aciertoDeTipo = state $ \s -> (Right $ tipo', s)
+          aciertoDeTipo = (state $ \s -> (Right $ tipo', s)) :: SymbolTableState
           tipo' = tipoToStr tipo
 
 -- Si solo se declara la variable
