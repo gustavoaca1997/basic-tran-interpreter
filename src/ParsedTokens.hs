@@ -17,22 +17,39 @@ class ToStr a where
 --------------------FUNCIONES PARA EL ANALIZADOR SEMANTICO -----------------
 ----------------------------------------------------------------------------
 -- Funcion que analiza semanticamente operaciones aritmeticas binarias
-analizarOpBin :: Expresion -> TkObject -> Expresion -> SymbolTableState
-analizarOpBin exparit1 token exparit2 = do
+analizarOpBin :: Expresion -> TkObject -> Expresion -> String -> SymbolTableState
+analizarOpBin exparit1 token exparit2 tipo = do
     -- Analizamos semanticamente la primera expresion
-    ret1 <- traversal exparit1
+    ret1 <- expIsOfType exparit1 tipo (tkPos token)
     (case ret1 of
-        Left err -> state(\s -> (ret1, s))
+        -- Vemos si ocurrio un error
+        Left err -> return ret1
         Right exp_tipo1 -> do
             -- Analizamos semanticamente la segunda expresion
-            ret2 <- traversal exparit2
+            ret2 <- expIsOfType exparit2 tipo (tkPos token)
             (case ret2 of
-                Left err -> state(\s -> (ret1, s))
+                -- Vemos si ocurrio un error
+                Left err -> return ret2
                 Right exp_tipo2 ->
                     if (exp_tipo1 /= exp_tipo2) then
                         return $ Left $ "Operacion invalida '" ++ (tkToStr token) ++ "' de " ++ exp_tipo1 ++ " con " ++ exp_tipo2 ++ " en la posicion " ++ show (tkPos token) ++ ": error semantico"
                         else
                             return $ ret1))
+
+-- Funcion que chequea si una expresion es del tipo correcto
+expIsOfType :: Expresion -> String -> (Int, Int) -> SymbolTableState
+expIsOfType expresion tipo (l, c) = do
+    -- Analizamos expresion derecha
+    ret1 <- traversal expresion
+    -- Vemos si hubo errores
+    case ret1 of
+        Left err -> return ret1
+        Right exp_tipo1 ->
+            -- Chequeamos si es del tipo correcto
+            if (words exp_tipo1 !! 0) /= tipo then
+                return $ Left $ "Expresion no es de tipo " ++ tipo ++ " en la posicion " ++ show (l, c) ++ ": error semantico"
+                else
+                    return $ Right $ tipo
 
 -- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -76,7 +93,16 @@ initsToSTable ((Asignacion token expresion):xs) tipo auxTable
 initsToSTable ((Declaracion token):xs) tipo auxTable
     | H.member (tkToStr token) auxTable = 
         state(\s -> (Left ("'" ++ (tkToStr token) ++ "' redeclarada en la posicion " ++ show (tkPos token) ++ ": error semantico"), [H.empty]))
-    | otherwise = initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
+    | otherwise = do
+        -- Chequeamos el tipo
+        check_type <- (case tipo of
+            TipoArreglo token expresion tipo_arr ->
+                expIsOfType expresion "int" (tkPos token)
+            _ -> return $ Right $ (tipoToStr tipo) )
+        (case check_type of
+            Left err -> return check_type
+            Right _ ->
+                initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable))
 
 -- Función que recibe una lista de instrucciones y las recorre para analizar semanticamente
 traverseList :: [Instruccion] ->  SymbolTableState
@@ -208,7 +234,6 @@ data Expresion =
     | MenosUnario TkObject Expresion
     | LitArit TkObject
     | Ascii TkObject Expresion
-    | IndexArrayArit Expresion
 
     -------------------------------------------------------------------------------
     -- Expresión Relacional
@@ -225,19 +250,17 @@ data Expresion =
     | OperadorBoolBin Expresion TkObject Expresion  -- B and (x > 2)
     | OperadorBoolUn TkObject Expresion
     | LitBool TkObject  -- True, False
-    | IndexArrayBool Expresion -- a[1]
 
     ------------------------------------------------------------------------------------
     -- Expresion de caracteres
     | SiguienteChar Expresion TkObject
     | AnteriorChar Expresion TkObject
     | LitChar TkObject
-    | IndexArrayChar Expresion
 
     -- Expresion de arreglos
     | ConcatenacionArray Expresion TkObject Expresion
     | ShiftArray TkObject Expresion
-    | IndexacionArray Expresion Expresion
+    | IndexacionArray Expresion TkObject Expresion
     deriving Show
 instance ToStr Expresion where
     -------------------------------------------------------------------------------
@@ -265,15 +288,12 @@ instance ToStr Expresion where
         putTabs (tabs+2) (show obj) ++
         toStr expchar (tabs+2)
 
-    toStr (IndexArrayArit indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
-        toStr indexarray (tabs+2)
-
     toStr (MenosUnario obj exparit) tabs = (putTabs tabs "MENOS UNARIO") ++ (putTabs (tabs+2) (show obj)) ++ (toStr exparit (tabs+2))
 
     toStr (LitArit obj) tabs = (putTabs tabs "LITERAL ARITMETICO") ++ (putTabs (tabs+2) (show obj))
 
     -------------------------------------------------------------------------------
-    -- Para imprimir el AST
+    -- Expresion relacional
     toStr (MenorQue exparit1 obj exparit2) tabs = (putTabs tabs "MENOR_QUE") ++ (toStr exparit1 (tabs+2)) ++
         (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
 
@@ -293,7 +313,7 @@ instance ToStr Expresion where
         (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
 
     ------------------------------------------------------------------------------------
-    -- Para imprimir el AST
+    -- Expresion booleana
     toStr (Relacion exprel) tabs = putTabs tabs "RELACION" ++ toStr exprel (tabs+2)
 
     toStr (OperadorBoolBin expbool1 obj expbool2) tabs = putTabs tabs "OPERADOR_BOOL_BIN" ++
@@ -304,11 +324,8 @@ instance ToStr Expresion where
 
     toStr (LitBool obj) tabs = (putTabs tabs "LITERAL BOOLEANO") ++ (putTabs (tabs+2) (show obj))
 
-    toStr (IndexArrayBool indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
-        toStr indexarray (tabs+2)
-
     ------------------------------------------------------------------------------------
-    -- Para imprimir AST
+    -- Expresiones de caracteres
     toStr (SiguienteChar expchar obj) tabs = putTabs tabs "SIG_CHAR" ++
         toStr expchar (tabs+2) ++
         putTabs (tabs+2) (show obj)
@@ -319,9 +336,8 @@ instance ToStr Expresion where
 
     toStr (LitChar obj) tabs = (putTabs tabs "LITERAL DE CARACTER") ++ (putTabs (tabs+2) (show obj))
 
-    toStr (IndexArrayChar indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
-        toStr indexarray (tabs+2)
-
+    ------------------------------------------------------------------------------------
+    -- Expresiones de arreglos
     toStr (ConcatenacionArray exparray1 obj exparray2) tabs =
         putTabs tabs "CONCAT_ARR" ++
         toStr exparray1 (tabs+2) ++
@@ -333,11 +349,12 @@ instance ToStr Expresion where
         putTabs (tabs+2) (show obj) ++
         toStr exparray (tabs+2)
 
-    toStr (IndexacionArray exparray exparit) tabs =
+    toStr (IndexacionArray exparray _ exparit) tabs =
         putTabs tabs "INDEX_ARR" ++
         putTabs (tabs+2) "arreglo:" ++ toStr exparray (tabs+2) ++
         putTabs (tabs+2) "indice:" ++ toStr exparit (tabs+2)
 
+    -------------------------------------------------------------------------------
     -------------------------------------------------------------------------------
     -- Para analizar semanticamente
 
@@ -348,25 +365,27 @@ instance ToStr Expresion where
                 inSTable (tkToStr token) l c
         )
 
+    -------------------------------------------------------------------------------
+    -- Expresion aritmeticas
     -- Suma
     traversal (Suma exparit1 token exparit2) = 
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Resta
     traversal (Resta exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Multiplicacion
     traversal (Mult exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Division
     traversal (Div exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2        
+        analizarOpBin exparit1 token exparit2 "int"      
 
     -- Modulo
     traversal (Mod exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Menos Unario
     traversal (MenosUnario operador exparit) =
@@ -375,36 +394,40 @@ instance ToStr Expresion where
     -- Literal
     traversal (LitArit token) = state (\s -> (Right "int", s))
 
+    -------------------------------------------------------------------------------
+    -- Expresion relacional
     -- Menor que
     traversal (MenorQue exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Mayor que
     traversal (MayorQue exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Menor o igual que
     traversal (MenorIgualQue exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Mayor o igual que
     traversal (MayorIgualQue exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Igual que
     traversal (Igual exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Distinto que
     traversal (Distinto exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2 "int"
 
+    -------------------------------------------------------------------------------
+    -- Expresion booleana
     -- Relacion
     traversal (Relacion exprel) = traversal exprel
 
     -- and, or
     traversal (OperadorBoolBin expbool1 token expbool2) = do
-        analizarOpBin expbool1 token expbool2
+        analizarOpBin expbool1 token expbool2 "bool"
 
     -- not
     traversal (OperadorBoolUn token expbool) = do
@@ -413,6 +436,8 @@ instance ToStr Expresion where
     -- Literal
     traversal (LitBool token) = state (\s -> (Right "bool", s))
 
+    -------------------------------------------------------------------------------
+    -- Expresion de caracteres
     -- Siguiente caracter
     traversal (SiguienteChar expchar obj) =
         traversal expchar
@@ -424,6 +449,30 @@ instance ToStr Expresion where
     -- Literal
     traversal (LitChar token) = state (\s -> (Right "char", s))
 
+    -------------------------------------------------------------------------------
+    -- Expresion de arreglos
+    -- Indexacion
+    traversal (IndexacionArray expresion1 corchete expresion2) = do
+        -- Analizamos los tipos
+        ret1 <- expIsOfType expresion1 "array" (tkPos corchete)
+        ret2 <- expIsOfType expresion2 "int" (tkPos corchete)
+        -- Chequeamos por errores
+        case ret1 of
+            Left err -> return ret1
+            Right exp_tipo1 ->
+                case ret2 of
+                    Left err -> return ret2
+                    Right exp_tipo2 ->
+                        -- Retornamos el tipo del elemento
+                        return $ Right $ show $ tail $ words $ exp_tipo1
+
+    -- Concatenacion
+    traversal (ConcatenacionArray expresion1 operador expresion2) = do
+        analizarOpBin expresion1 operador expresion2 "array"
+
+    -- Shift
+    traversal (ShiftArray token expresion) = do
+        expIsOfType expresion "array" (tkPos token)
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
 data Instruccion =

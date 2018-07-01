@@ -143,7 +143,7 @@ Expresion :
         -- Expresiones con arreglos
           | Expresion '::' Expresion    { ConcatenacionArray $1 $2 $3 }
           | '$' Expresion               { ShiftArray $1 $2 }
-          | Expresion '[' Expresion ']' { IndexacionArray $1 $3 }
+          | Expresion '[' Expresion ']' { IndexacionArray $1 $2 $3 }
           | '#' Expresion               { Ascii $1 $2 }
           | '(' Expresion ')'           { $2 }
           | id                          { Ident $1 }
@@ -188,7 +188,7 @@ Asignacion :
     id '<-' Expresion                           { Asignacion $1 $3 }
 
 AsignacionIndexArray:
-    Expresion '[' Expresion ']' '<-' Expresion           { AsignacionIndexArrayInstr (IndexacionArray $1 $3) $6}
+    Expresion '[' Expresion ']' '<-' Expresion           { AsignacionIndexArrayInstr (IndexacionArray $1 $2 $3) $6}
 
 -- Iteración Indeterminada
 IteracionInd : While Expresion '->' Bloque end            { WhileInstr $2 $4 }
