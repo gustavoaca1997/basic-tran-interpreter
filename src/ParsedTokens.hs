@@ -554,7 +554,7 @@ instance ToStr Instruccion where
 -- Instrucción de If
 data IfInstr =
     If Expresion TkObject [Instruccion]
-    | IfOtherwise Expresion [Instruccion] [Instruccion]
+    | IfOtherwise Expresion TkObject [Instruccion] [Instruccion]
     deriving Show
 
 instance ToStr IfInstr where
@@ -564,13 +564,14 @@ instance ToStr IfInstr where
         putTabs (tabs+2) "guardia:" ++ toStr expbool (tabs+2) ++
         putTabs (tabs+2) "exito:" ++ printLista tabs instruccion
 
-    toStr (IfOtherwise expbool instruccion1 instruccion2) tabs = putTabs tabs "CONDICIONAL" ++
+    toStr (IfOtherwise expbool token instruccion1 instruccion2) tabs = putTabs tabs "CONDICIONAL" ++
         putTabs (tabs+2) "guardia:" ++ toStr expbool (tabs+2) ++
         putTabs (tabs+2) "exito:" ++ printLista tabs instruccion1 ++
         putTabs (tabs+2) "fracaso:" ++ printLista tabs instruccion2
 
     --------------------------------------------------------------------
     -- Para analizar semanticamente el arbol
+    -- if
     traversal (If expresion token insts) = do
         ret <- traversal expresion
         case ret of
@@ -580,6 +581,22 @@ instance ToStr IfInstr where
                     return $ Left $ "Guardia de tipo " ++ tipo ++ " distinto a bool, en la posicion " ++ show (tkPos token) ++ ": error semantico"
                     else
                         traverseList insts
+
+    -- otherwise
+    traversal (IfOtherwise expresion token insts1 insts2) = 
+        do
+            ret <- traversal expresion
+            (case ret of
+                Left err -> return ret
+                Right tipo -> 
+                    if tipo /= "bool" then
+                        return $ Left $ "Guardia de tipo " ++ tipo ++ " distinto a bool, en la posicion " ++ show (tkPos token) ++ ": error semantico" 
+                        else do
+                            ret1 <- traverseList insts1
+                            case ret1 of
+                                Left err -> return ret1
+                                Right _ -> do
+                                    traverseList insts2)
 
 --------------------------------------------------------------------
 -- Instrucción de For

@@ -173,7 +173,7 @@ Instruccion : Condicional                                 { IfInstr $1 }
 
             -- Condicionales
 Condicional : If Expresion '->' Bloque end                       { If $2 $3 $4 }
-            | If Expresion '->' Bloque otherwise '->' Bloque end { IfOtherwise $2 $4 $7 }
+            | If Expresion '->' Bloque otherwise '->' Bloque end { IfOtherwise $2 $3 $4 $7 }
 
 -- Iteracion Determinada
 IterDet : For id from Expresion to Expresion '->' Bloque end              { For $1 $2 $4 $6 $8 }
