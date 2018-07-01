@@ -172,7 +172,7 @@ Instruccion : Condicional                                 { IfInstr $1 }
             | PuntoInstr ';'                              { PuntoInstr $1 }
 
             -- Condicionales
-Condicional : If Expresion '->' Bloque end                       { If $2 $4 }
+Condicional : If Expresion '->' Bloque end                       { If $2 $3 $4 }
             | If Expresion '->' Bloque otherwise '->' Bloque end { IfOtherwise $2 $4 $7 }
 
 -- Iteracion Determinada

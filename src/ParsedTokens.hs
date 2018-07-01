@@ -419,28 +419,34 @@ instance ToStr Expresion where
     -------------------------------------------------------------------------------
     -- Expresion relacional
     -- Menor que
-    traversal (MenorQue exparit1 token exparit2) =
+    traversal (MenorQue exparit1 token exparit2) = do
         analizarOpBin exparit1 token exparit2 "int"
+        return $ Right "bool"
 
     -- Mayor que
-    traversal (MayorQue exparit1 token exparit2) =
+    traversal (MayorQue exparit1 token exparit2) = do
         analizarOpBin exparit1 token exparit2 "int"
+        return $ Right "bool"
 
     -- Menor o igual que
-    traversal (MenorIgualQue exparit1 token exparit2) =
+    traversal (MenorIgualQue exparit1 token exparit2) = do
         analizarOpBin exparit1 token exparit2 "int"
+        return $ Right "bool"
 
     -- Mayor o igual que
-    traversal (MayorIgualQue exparit1 token exparit2) =
+    traversal (MayorIgualQue exparit1 token exparit2) = do
         analizarOpBin exparit1 token exparit2 "int"
+        return $ Right "bool"
 
     -- Igual que
-    traversal (Igual exparit1 token exparit2) =
+    traversal (Igual exparit1 token exparit2) = do
         analizarOpBin exparit1 token exparit2 "int"
+        return $ Right "bool"
 
     -- Distinto que
-    traversal (Distinto exparit1 token exparit2) =
+    traversal (Distinto exparit1 token exparit2) = do
         analizarOpBin exparit1 token exparit2 "int"
+        return $ Right "bool"
 
     -------------------------------------------------------------------------------
     -- Expresion booleana
@@ -540,17 +546,21 @@ instance ToStr Instruccion where
 
     traversal (IncAlcanceInstr instr) = traversal instr
 
+    traversal (IfInstr x) = traversal x
+
     traversal (EmptyInstr) = state(\s -> (Right "", s))
 --------------------------------------------------------------------
-
+--------------------------------------------------------------------
 -- Instrucción de If
 data IfInstr =
-    If Expresion [Instruccion]
+    If Expresion TkObject [Instruccion]
     | IfOtherwise Expresion [Instruccion] [Instruccion]
     deriving Show
 
 instance ToStr IfInstr where
-    toStr (If expbool instruccion) tabs = putTabs tabs "CONDICIONAL" ++
+    --------------------------------------------------------------------
+    -- Para imprimir el AST
+    toStr (If expbool token instruccion) tabs = putTabs tabs "CONDICIONAL" ++
         putTabs (tabs+2) "guardia:" ++ toStr expbool (tabs+2) ++
         putTabs (tabs+2) "exito:" ++ printLista tabs instruccion
 
@@ -559,6 +569,19 @@ instance ToStr IfInstr where
         putTabs (tabs+2) "exito:" ++ printLista tabs instruccion1 ++
         putTabs (tabs+2) "fracaso:" ++ printLista tabs instruccion2
 
+    --------------------------------------------------------------------
+    -- Para analizar semanticamente el arbol
+    traversal (If expresion token insts) = do
+        ret <- traversal expresion
+        case ret of
+            Left err -> return ret
+            Right tipo ->
+                if tipo /= "bool" then
+                    return $ Left $ "Guardia de tipo " ++ tipo ++ " distinto a bool, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                    else
+                        traverseList insts
+
+--------------------------------------------------------------------
 -- Instrucción de For
 data ForInstr =
     For
@@ -587,6 +610,7 @@ instance ToStr ForInstr where
         putTabs (tabs+2) "step:" ++ toStr step (tabs+2) ++
         putTabs (tabs+2) "bloque:" ++ printLista tabs bloque
 
+--------------------------------------------------------------------        
 -- Instrucción de I/O
 data IOInstr =
     Print TkObject Expresion
@@ -634,7 +658,7 @@ instance ToStr IncAlcanceInstr where
     traversal (SinDeclaracion tkobject insts) = do
         traverseList insts
         
-
+--------------------------------------------------------------------
 -- Instrucción de Punto
 data PuntoInstr =
     Punto
