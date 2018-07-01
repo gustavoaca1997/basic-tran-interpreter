@@ -47,7 +47,9 @@ expIsOfType expresion tipo (l, c) = do
         Left err -> return ret1
         Right exp_tipo1 ->
             -- Chequeamos si es del tipo correcto
-            if (words exp_tipo1 !! 0) /= tipo then
+            if (length (words exp_tipo1) == 0) then
+                return $ Left $ "exp_tipo1 50 vacio"
+            else if (words exp_tipo1 !! 0) /= tipo then
                 return $ Left $ "Expresion de tipo " ++ exp_tipo1 ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l, c) ++ ": error semantico"
                 else
                     return $ Right $ exp_tipo1
@@ -56,21 +58,30 @@ expIsOfType expresion tipo (l, c) = do
 -- y la tabla de símbolos correspondiente solo al scope actual.
 -- Retorna Left si ocurrió un error
 varsToSTable :: [Variables] -> SymbolTable -> SymbolTableState
-varsToSTable [] auxTable  = do
-    pushSTable auxTable
+varsToSTable [] auxTable  = 
+    -- pushSTable auxTable
+    state (
+        \s@(x:y:xs) ->
+            (Right "", (x `H.union` y):xs)
+    )
 varsToSTable ((Variables inits tipo):vars) auxTable = do
     ret <- initsToSTable inits tipo auxTable
     (case ret of
                 Left err -> return ret
                 -- Right auxTable' -> varsToSTable vars auxTable')
-                Right _ -> state(\s -> runState (varsToSTable vars (head s)) s))
+                Right _ -> state(\s@(x:xs) -> runState (varsToSTable vars x) s))
 
 -- Función que recibe una lista de inicializacion de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
 -- Retorna Left si ocurrió un error
 initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
 -- Si ya no hay variables por analizar
-initsToSTable [] _ auxTable = pushSTable auxTable
+initsToSTable [] _ auxTable = 
+    -- pushSTable auxTable
+    state (
+        \s@(x:xs) ->
+            (Right "", (auxTable `H.union` x):xs)
+    )
 
 -- Si se inicializa la variable con un valor
 initsToSTable ((Asignacion token expresion):xs) tipo auxTable
@@ -113,8 +124,12 @@ traverseList (x:xs) = do
     (case ret of
                 Left err -> state(\s -> (ret, s))
                 Right _ -> do
-                    popSTable
-                    traverseList xs)
+                    case x of
+                        IncAlcanceInstr instr -> do
+                            popSTable
+                            traverseList xs
+                        _ -> do
+                            traverseList xs)
 
 
 ----------------------------------------------------------------------------
@@ -606,11 +621,15 @@ instance ToStr IncAlcanceInstr where
     ----------------------------------------------------------------------------
     -- Para recorrer arbol y analizarlo semanticamente
     traversal (ConDeclaracion tkobject vars insts) = do
-        ret <- varsToSTable vars H.empty
-        (case ret of
-                    Left err -> state(\s -> (ret, s))
-                    Right _ -> do
-                        traverseList insts)
+        ret' <- pushEmpty
+        (case ret' of
+            Left err -> return ret'
+            Right _ -> do
+                ret <- varsToSTable vars H.empty
+                (case ret of
+                            Left err -> state(\s -> (ret, s))
+                            Right _ -> do
+                                traverseList insts))
 
     traversal (SinDeclaracion tkobject insts) = do
         traverseList insts

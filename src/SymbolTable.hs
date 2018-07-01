@@ -14,6 +14,12 @@ pushSTable sTable' =
         \s -> ((Right ""), (sTable' `H.union` (head s)):s)
     )
 
+pushEmpty :: SymbolTableState
+pushEmpty =
+    state (
+        \s -> (Right "", H.empty:s)
+    )
+
 popSTable :: SymbolTableState
 popSTable = state (\s -> case s of
     [] -> (Right "", [H.empty])
@@ -40,10 +46,13 @@ checkType key tipo l c =
             let val = H.lookup key (head s) in (
                 case val of
                     Nothing -> (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )
-                    Just val' -> if (words val' !!0) == tipo then
-                        (Right tipo, s)
-                        else
-                            (Left ("'" ++ key ++ "': variable de tipo " ++ show val' ++ " no es de tipo " ++ show tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )    
+                    Just val' -> 
+                        if (length (words val') == 0) then
+                            (Left $ "lista vacia 50 symboltable", [])
+                        else  if (words val' !!0) == tipo then
+                            (Right tipo, s)
+                            else
+                                (Left ("'" ++ key ++ "': variable de tipo " ++ show val' ++ " no es de tipo " ++ show tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty] )    
             )
         )
     )
