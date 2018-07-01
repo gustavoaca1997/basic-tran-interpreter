@@ -40,11 +40,11 @@ inSTable key l c =
                             let val1 = H.lookup key ((s::[SymbolTable]) !! 1) in (
                                 case val1 of
                                     Nothing -> 
-                                        (Left ("pene '" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty])
+                                        (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty])
                                     Just tipo' ->
                                         (Right tipo', s))
                             else
-                                (Left ("culo '" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty]))
+                                (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty]))
             )
         )
     )
@@ -72,11 +72,11 @@ checkType key tipo l c =
                             let val1 = H.lookup key (s !! 1) in (
                                 case val1 of
                                     Nothing -> 
-                                        (Left ("pene '" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty])
+                                        (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty])
                                     Just val' ->
                                         (chequear val', s))
                             else
-                                (Left ("culo '" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty]))
+                                (Left ("'" ++ key ++ "': variable no declarada en la posicion " ++ show (l,c) ++ ": error semantico"), [H.empty]))
                     Just val' -> 
                         (chequear val', s)
             )

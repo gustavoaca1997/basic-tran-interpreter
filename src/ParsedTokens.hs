@@ -509,7 +509,7 @@ data Instruccion =
     | WhileInstr Expresion [Instruccion]
     | IOInstr IOInstr
     | AsignacionInstr Inicializacion
-    | AsignacionIndexArrayInstr Expresion Expresion
+    | AsignacionIndexArrayInstr Expresion TkObject Expresion
     | IncAlcanceInstr IncAlcanceInstr
     | PuntoInstr PuntoInstr
     -- | Asignacion (ver arriba en inicializacion)
@@ -531,7 +531,7 @@ instance ToStr Instruccion where
 
     toStr (AsignacionInstr x) tabs = toStr x tabs
 
-    toStr (AsignacionIndexArrayInstr indexarray exp) tabs = putTabs tabs "ASIGNACION" ++
+    toStr (AsignacionIndexArrayInstr indexarray token exp) tabs = putTabs tabs "ASIGNACION" ++
         putTabs (tabs+2) "objetivo:" ++ toStr indexarray (tabs+2) ++
         putTabs (tabs+2) "valor:" ++ toStr exp (tabs+2)
 
@@ -543,6 +543,20 @@ instance ToStr Instruccion where
     ----------------------------------------------------------------
     -- Funcion para recorrer el arbol
     traversal (AsignacionInstr x) = traversal x
+
+    traversal (AsignacionIndexArrayInstr expresion1 token expresion2) = do
+        ret1 <- traversal expresion1
+        (case ret1 of
+            Left err -> return ret1
+            Right tipo1 -> do
+                ret2 <- traversal expresion2
+                case ret2 of
+                    Left err -> return ret2
+                    Right tipo2 ->
+                        if tipo1 /= tipo2 then
+                            return $ Left $ "Asignacion de " ++ tipo2 ++ " a " ++ tipo1 ++ " en la posicion " ++ show(tkPos token) ++ ": error semantico"
+                            else
+                                return $ Right $ tipo1)
 
     traversal (IncAlcanceInstr instr) = traversal instr
 

@@ -188,7 +188,7 @@ Asignacion :
     id '<-' Expresion                           { Asignacion $1 $3 }
 
 AsignacionIndexArray:
-    Expresion '[' Expresion ']' '<-' Expresion           { AsignacionIndexArrayInstr (IndexacionArray $1 $2 $3) $6}
+    Expresion '[' Expresion ']' '<-' Expresion           { AsignacionIndexArrayInstr (IndexacionArray $1 $2 $3) $5 $6}
 
 -- Iteración Indeterminada
 IteracionInd : While Expresion '->' Bloque end            { WhileInstr $2 $4 }
