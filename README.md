@@ -1,5 +1,5 @@
 # Interpretador de Basic-Translation
-
+[Especificaciones del lenguaje](https://drive.google.com/file/d/1Lsapac7c9lrTpRm5uTsGvMoeMd34Oorf/view?usp=sharing)
 ## Integrantes:
 * German Robayo (14-10924)
 * Gustavo Castellanos (14-10192)
