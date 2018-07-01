@@ -16,6 +16,23 @@ class ToStr a where
 ----------------------------------------------------------------------------
 --------------------FUNCIONES PARA EL ANALIZADOR SEMANTICO -----------------
 ----------------------------------------------------------------------------
+-- Funcion que analiza semanticamente operaciones aritmeticas binarias
+analizarOpBin :: Expresion -> TkObject -> Expresion -> SymbolTableState
+analizarOpBin exparit1 token exparit2 = do
+    -- Analizamos semanticamente la primera expresion
+    ret1 <- traversal exparit1
+    (case ret1 of
+        Left err -> state(\s -> (ret1, s))
+        Right exp_tipo1 -> do
+            -- Analizamos semanticamente la segunda expresion
+            ret2 <- traversal exparit2
+            (case ret2 of
+                Left err -> state(\s -> (ret1, s))
+                Right exp_tipo2 ->
+                    if (exp_tipo1 /= exp_tipo2) then
+                        return $ Left $ "Operacion invalida '" ++ (tkToStr token) ++ "' de " ++ exp_tipo1 ++ " con " ++ exp_tipo2 ++ " en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                        else
+                            return $ ret1))
 
 -- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -176,17 +193,6 @@ instance ToStr Variables where
 -------------------------------------------------------------------------------
 -------------------------------- EXPRESIONES ----------------------------------
 -------------------------------------------------------------------------------
--- Funcion que analiza semanticamente operaciones aritmeticas binarias
-analizarOpBinArit :: Expresion -> TkObject -> Expresion -> SymbolTableState
-analizarOpBinArit exparit1 token exparit2 = do
-    -- Analizamos semanticamente la primera expresion
-    ret1 <- traversal exparit1
-    (case ret1 of
-        Left err -> state(\s -> (ret1, s))
-        Right _ -> do
-            -- Analizamos semanticamente la segunda expresion
-            traversal exparit2)
-
 -- Expresion
 data Expresion =
     -------------------------------------------------------------------------------
@@ -344,23 +350,23 @@ instance ToStr Expresion where
 
     -- Suma
     traversal (Suma exparit1 token exparit2) = 
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Resta
     traversal (Resta exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Multiplicacion
     traversal (Mult exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Division
     traversal (Div exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2        
+        analizarOpBin exparit1 token exparit2        
 
     -- Modulo
     traversal (Mod exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Menos Unario
     traversal (MenosUnario operador exparit) =
@@ -371,38 +377,34 @@ instance ToStr Expresion where
 
     -- Menor que
     traversal (MenorQue exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Mayor que
     traversal (MayorQue exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Menor o igual que
     traversal (MenorIgualQue exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Mayor o igual que
     traversal (MayorIgualQue exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Igual que
     traversal (Igual exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Distinto que
     traversal (Distinto exparit1 token exparit2) =
-        analizarOpBinArit exparit1 token exparit2
+        analizarOpBin exparit1 token exparit2
 
     -- Relacion
     traversal (Relacion exprel) = traversal exprel
 
     -- and, or
     traversal (OperadorBoolBin expbool1 token expbool2) = do
-        ret <- traversal expbool1
-        (case ret of
-            Left err -> return ret
-            Right _ ->
-                traversal expbool2)
+        analizarOpBin expbool1 token expbool2
 
     -- not
     traversal (OperadorBoolUn token expbool) = do
