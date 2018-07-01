@@ -75,12 +75,12 @@ not         { TkObject TkNegacion _ _ }
 '$'         { TkObject TkShift _ _ }
 
 -- Precedencias
+%left not
+%left or
+%left and
 %nonassoc '>' '<' '=' '>=' '<=' '/='
 %left '+' '-'
 %left '*' '/' '%'
-%left or
-%left and
-%left not
 %left '::'
 %left '++'
 %left "--"
