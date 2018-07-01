@@ -46,24 +46,25 @@ initsToSTable ((Asignacion token expresion):xs) tipo auxTable
             Left err -> return ret
             Right _ -> 
                 -- Chequeamos que la expresion sea del tipo correcto
-                (case expresion of
-                    ExpArit _ -> 
-                        if tipo' /= "int" then
-                            errorDeTipo
-                        else
-                            aciertoDeTipo
-                    ExpBool _ ->
-                        if tipo' /= "bool" then
-                            errorDeTipo
-                        else
-                            aciertoDeTipo
-                    ExpChar _ ->
-                        if tipo' /= "char" then
-                            errorDeTipo
-                        else
-                            aciertoDeTipo))
+                -- (case expresion of
+                --     ExpArit _ -> 
+                --         if tipo' /= "int" then
+                --             errorDeTipo
+                --         else
+                --             aciertoDeTipo
+                --     ExpBool _ ->
+                --         if tipo' /= "bool" then
+                --             errorDeTipo
+                --         else
+                --             aciertoDeTipo
+                --     ExpChar _ ->
+                --         if tipo' /= "char" then
+                --             errorDeTipo
+                --         else
+                --             aciertoDeTipo))
+                aciertoDeTipo)
 
-    where errorDeTipo = return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr token) ++ "' en la posicion " ++ show(tkPos token) ++ ": error semantico"                            
+    where errorDeTipo = (return $ Left $ "Expresion de tipo distinto al tipo de '" ++ (tkToStr token) ++ "' en la posicion " ++ show(tkPos token) ++ ": error semantico") :: SymbolTableState
           aciertoDeTipo = state $ \s -> (Right $ tipo', s)
           tipo' = tipoToStr tipo
 
@@ -125,9 +126,9 @@ instance ToStr Inicializacion where
     --------------------------------------------------------------------
     -- Funcion para imprimir el arbol sintactico
     toStr (Asignacion obj exp) tabs = putTabs tabs "ASIGNACION" ++
-        putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj) ++ toStr exp (tabs+2)
+        putTabs (tabs+2) "IDENTIFICADOR" ++ putTabs (tabs+4) (show obj) ++ toStr exp (tabs+2)
     toStr (Declaracion obj) tabs = putTabs tabs "DECLARACION" ++
-        putTabs (tabs+2) "IDENTIFICADOR\n" ++ putTabs (tabs+4) (show obj)
+        putTabs (tabs+2) "IDENTIFICADOR" ++ putTabs (tabs+4) (show obj)
 
     --------------------------------------------------------------------
     -- Funcion para recorrer y analizar semanticamente el arbol
@@ -144,14 +145,6 @@ instance ToStr Inicializacion where
                         -- Ahora chequeamos que el tipo de datos
                         -- coincida con la expresion
                         do
-                            -- checktype <- (case tipo_exp of
-                            --     "int" -> checkType (tkToStr token) "int" l c
-                            --     "bool" -> checkType (tkToStr token) "bool" l c
-                            --     "char" -> checkType (tkToStr token) "char" l c)
-                            -- (case checktype of
-                            --     Left err -> return checktype
-                            --     Right _ ->
-                            --         traversal expresion)))
                             ret' <- traversal expresion
                             (case ret' of
                                 Left err -> return ret'
@@ -168,7 +161,7 @@ instance ToStr Inicializacion where
 -- Tipos de datos
 data Tipo =
     TipoPrimitivo TkObject
-    | TipoArreglo TkObject ExpArit Tipo -- array [exparit] of tipo
+    | TipoArreglo TkObject Expresion Tipo -- array [exparit] of tipo
     deriving Show
 
 instance ToStr Tipo where
@@ -196,43 +189,8 @@ instance ToStr Variables where
 -------------------------------------------------------------------------------
 -------------------------------- EXPRESIONES ----------------------------------
 -------------------------------------------------------------------------------
-
--- Expresion
-data Expresion =
-    ExpArit ExpArit
-    | ExpBool ExpBool
-    | ExpChar ExpChar
-    | ExpArray ExpArray
-    deriving Show
-
-instance ToStr Expresion where
-    -------------------------------------------------------------------------------
-    -- Para imprimir el arbol
-    toStr (ExpArit x) tabs = toStr x tabs
-    toStr (ExpBool x) tabs = toStr x tabs
-    toStr (ExpChar x) tabs = toStr x tabs
-    toStr (ExpArray x) tabs = toStr x tabs
-
-    -------------------------------------------------------------------------------
-    -- Para analizar semanticamente
-    
-    -- Expresion Aritmetica
-    traversal (ExpArit x) = do
-        traversal x
-
-    -- Expresion de Caracteres
-    traversal (ExpChar x) = do
-        traversal x
-
-    -- Expresion Booleana
-    traversal (ExpBool x) = do
-        traversal x
-
--------------------------------------------------------------------------------
--- Expresion Aritmética
-
 -- Funcion que analiza semanticamente operaciones aritmeticas binarias
-analizarOpBinArit :: ExpArit -> TkObject -> ExpArit -> SymbolTableState
+analizarOpBinArit :: Expresion -> TkObject -> Expresion -> SymbolTableState
 analizarOpBinArit exparit1 token exparit2 = do
     -- Analizamos semanticamente la primera expresion
     ret1 <- traversal exparit1
@@ -242,22 +200,59 @@ analizarOpBinArit exparit1 token exparit2 = do
             -- Analizamos semanticamente la segunda expresion
             traversal exparit2)
 
-data ExpArit =
-    Suma ExpArit TkObject ExpArit
-    | Resta ExpArit TkObject ExpArit
-    | Mult ExpArit TkObject ExpArit
-    | Div ExpArit TkObject ExpArit
-    | Mod ExpArit TkObject ExpArit
-    | MenosUnario TkObject ExpArit
+-- Expresion
+data Expresion =
+    -------------------------------------------------------------------------------
+    -- Identificador
+    Ident TkObject
+    -------------------------------------------------------------------------------
+    -- Expresion Aritmética
+    | Suma Expresion TkObject Expresion
+    | Resta Expresion TkObject Expresion
+    | Mult Expresion TkObject Expresion
+    | Div Expresion TkObject Expresion
+    | Mod Expresion TkObject Expresion
+    | MenosUnario TkObject Expresion
     | LitArit TkObject
-    | IdArit  TkObject
-    | Ascii TkObject ExpChar
-    | IndexArrayArit ExpArray
-    deriving Show
+    | Ascii TkObject Expresion
+    | IndexArrayArit Expresion
 
-instance ToStr ExpArit where
+    -------------------------------------------------------------------------------
+    -- Expresión Relacional
+    | MenorQue Expresion TkObject Expresion
+    | MayorQue Expresion TkObject Expresion
+    | MenorIgualQue Expresion TkObject Expresion
+    | MayorIgualQue Expresion TkObject Expresion
+    | Igual Expresion TkObject Expresion
+    | Distinto Expresion TkObject Expresion
+
+    ------------------------------------------------------------------------------------
+    -- Expresión Booleana/Lógica
+    | Relacion Expresion -- 2 + n <= x
+    | OperadorBoolBin Expresion TkObject Expresion  -- B and (x > 2)
+    | OperadorBoolUn TkObject Expresion
+    | LitBool TkObject  -- True, False
+    | IndexArrayBool Expresion -- a[1]
+
+    ------------------------------------------------------------------------------------
+    -- Expresion de caracteres
+    | SiguienteChar Expresion TkObject
+    | AnteriorChar Expresion TkObject
+    | LitChar TkObject
+    | IndexArrayChar Expresion
+
+    -- Expresion de arreglos
+    | ConcatenacionArray Expresion TkObject Expresion
+    | ShiftArray TkObject Expresion
+    | IndexacionArray Expresion Expresion
+    deriving Show
+instance ToStr Expresion where
     -------------------------------------------------------------------------------
     -- Para imprimir arbol
+
+    toStr (Ident token) tabs = putTabs tabs "IDENTIFICADOR" ++
+        putTabs (tabs+2) (show token)
+
     toStr (Suma exparit1 obj exparit2) tabs = (putTabs tabs "SUMA") ++ (toStr exparit1 (tabs+2)) ++
         (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
 
@@ -284,10 +279,81 @@ instance ToStr ExpArit where
 
     toStr (LitArit obj) tabs = (putTabs tabs "LITERAL ARITMETICO") ++ (putTabs (tabs+2) (show obj))
 
-    toStr (IdArit obj) tabs = (putTabs tabs "IDENTIFICADOR") ++ (putTabs (tabs+2) (show obj))
+    -------------------------------------------------------------------------------
+    -- Para imprimir el AST
+    toStr (MenorQue exparit1 obj exparit2) tabs = (putTabs tabs "MENOR_QUE") ++ (toStr exparit1 (tabs+2)) ++
+        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
+
+    toStr (MayorQue exparit1 obj exparit2) tabs = (putTabs tabs "MAYOR_QUE") ++ (toStr exparit1 (tabs+2)) ++
+        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
+
+    toStr (MenorIgualQue exparit1 obj exparit2) tabs = (putTabs tabs "MENOR_IG_QUE") ++ (toStr exparit1 (tabs+2)) ++
+        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
+
+    toStr (MayorIgualQue exparit1 obj exparit2) tabs = (putTabs tabs "MAYOR_IG_QUE") ++ (toStr exparit1 (tabs+2)) ++
+        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
+
+    toStr (Igual exparit1 obj exparit2) tabs = (putTabs tabs "IGUAL") ++ (toStr exparit1 (tabs+2)) ++
+        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
+
+    toStr (Distinto exparit1 obj exparit2) tabs = (putTabs tabs "DISTINTO") ++ (toStr exparit1 (tabs+2)) ++
+        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
+
+    ------------------------------------------------------------------------------------
+    -- Para imprimir el AST
+    toStr (Relacion exprel) tabs = putTabs tabs "RELACION" ++ toStr exprel (tabs+2)
+
+    toStr (OperadorBoolBin expbool1 obj expbool2) tabs = putTabs tabs "OPERADOR_BOOL_BIN" ++
+        toStr expbool1 (tabs+2) ++ (putTabs (tabs+2) (show obj)) ++ toStr expbool2 (tabs+2)
+
+    toStr (OperadorBoolUn obj expbool) tabs = putTabs tabs "OPERADOR_BOOL_UN" ++
+        (putTabs (tabs+2) (show obj)) ++ toStr expbool (tabs+2)
+
+    toStr (LitBool obj) tabs = (putTabs tabs "LITERAL BOOLEANO") ++ (putTabs (tabs+2) (show obj))
+
+    toStr (IndexArrayBool indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
+        toStr indexarray (tabs+2)
+
+    ------------------------------------------------------------------------------------
+    -- Para imprimir AST
+    toStr (SiguienteChar expchar obj) tabs = putTabs tabs "SIG_CHAR" ++
+        toStr expchar (tabs+2) ++
+        putTabs (tabs+2) (show obj)
+
+    toStr (AnteriorChar expchar obj) tabs = putTabs tabs "ANT_CHAR" ++
+        toStr expchar (tabs+2) ++
+        putTabs (tabs+2) (show obj)
+
+    toStr (LitChar obj) tabs = (putTabs tabs "LITERAL DE CARACTER") ++ (putTabs (tabs+2) (show obj))
+
+    toStr (IndexArrayChar indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
+        toStr indexarray (tabs+2)
+
+    toStr (ConcatenacionArray exparray1 obj exparray2) tabs =
+        putTabs tabs "CONCAT_ARR" ++
+        toStr exparray1 (tabs+2) ++
+        putTabs (tabs+2) (show obj) ++
+        toStr exparray2 (tabs+2)
+
+    toStr (ShiftArray obj exparray) tabs =
+        putTabs tabs "SHIF_ARR" ++
+        putTabs (tabs+2) (show obj) ++
+        toStr exparray (tabs+2)
+
+    toStr (IndexacionArray exparray exparit) tabs =
+        putTabs tabs "INDEX_ARR" ++
+        putTabs (tabs+2) "arreglo:" ++ toStr exparray (tabs+2) ++
+        putTabs (tabs+2) "indice:" ++ toStr exparit (tabs+2)
 
     -------------------------------------------------------------------------------
     -- Para analizar semanticamente
+
+    -- Identificador
+    traversal (Ident token) = 
+        let (l,c) = tkPos token in (
+            do
+                inSTable (tkToStr token) l c
+        )
 
     -- Suma
     traversal (Suma exparit1 token exparit2) = 
@@ -316,49 +382,6 @@ instance ToStr ExpArit where
     -- Literal
     traversal (LitArit token) = state (\s -> (Right "int", s))
 
-    -- Identificador
-    traversal (IdArit token) = 
-        let (l,c) = tkPos token in (
-            do
-                inSTable (tkToStr token) l c
-        )
-
--------------------------------------------------------------------------------
--- Expresión Relacional
-
-data ExpRel =
-    MenorQue ExpArit TkObject ExpArit
-    | MayorQue ExpArit TkObject ExpArit
-    | MenorIgualQue ExpArit TkObject ExpArit
-    | MayorIgualQue ExpArit TkObject ExpArit
-    | Igual ExpArit TkObject ExpArit
-    | Distinto ExpArit TkObject ExpArit
-    deriving Show
-
-instance ToStr ExpRel where
-    -------------------------------------------------------------------------------
-    -- Para imprimir el AST
-    toStr (MenorQue exparit1 obj exparit2) tabs = (putTabs tabs "MENOR_QUE") ++ (toStr exparit1 (tabs+2)) ++
-        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
-
-    toStr (MayorQue exparit1 obj exparit2) tabs = (putTabs tabs "MAYOR_QUE") ++ (toStr exparit1 (tabs+2)) ++
-        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
-
-    toStr (MenorIgualQue exparit1 obj exparit2) tabs = (putTabs tabs "MENOR_IG_QUE") ++ (toStr exparit1 (tabs+2)) ++
-        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
-
-    toStr (MayorIgualQue exparit1 obj exparit2) tabs = (putTabs tabs "MAYOR_IG_QUE") ++ (toStr exparit1 (tabs+2)) ++
-        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
-
-    toStr (Igual exparit1 obj exparit2) tabs = (putTabs tabs "IGUAL") ++ (toStr exparit1 (tabs+2)) ++
-        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
-
-    toStr (Distinto exparit1 obj exparit2) tabs = (putTabs tabs "DISTINTO") ++ (toStr exparit1 (tabs+2)) ++
-        (putTabs (tabs+2) (show obj)) ++ (toStr exparit2 (tabs+2))
-
-    -------------------------------------------------------------------------------
-    -- Para recorrer y analizar semanticamente el arbol
-
     -- Menor que
     traversal (MenorQue exparit1 token exparit2) =
         analizarOpBinArit exparit1 token exparit2
@@ -383,38 +406,6 @@ instance ToStr ExpRel where
     traversal (Distinto exparit1 token exparit2) =
         analizarOpBinArit exparit1 token exparit2
 
-------------------------------------------------------------------------------------
--- Expresión Booleana/Lógica
-data ExpBool =
-    Relacion ExpRel -- 2 + n <= x
-    | OperadorBoolBin ExpBool TkObject ExpBool  -- B and (x > 2)
-    | OperadorBoolUn  TkObject ExpBool
-    | IdBool TkObject   -- if es_string
-    | LitBool TkObject  -- True, False
-    | IndexArrayBool ExpArray -- a[1]
-    deriving Show
-
-instance ToStr ExpBool where
-    ------------------------------------------------------------------------------------
-    -- Para imprimir el AST
-    toStr (Relacion exprel) tabs = putTabs tabs "RELACION" ++ toStr exprel (tabs+2)
-
-    toStr (OperadorBoolBin expbool1 obj expbool2) tabs = putTabs tabs "OPERADOR_BOOL_BIN" ++
-        toStr expbool1 (tabs+2) ++ (putTabs (tabs+2) (show obj)) ++ toStr expbool2 (tabs+2)
-
-    toStr (OperadorBoolUn obj expbool) tabs = putTabs tabs "OPERADOR_BOOL_UN" ++
-        (putTabs (tabs+2) (show obj)) ++ toStr expbool (tabs+2)
-
-    toStr (IdBool obj) tabs = putTabs tabs "IDENTIFICADOR" ++ (putTabs (tabs+2) (show obj))
-
-    toStr (LitBool obj) tabs = (putTabs tabs "LITERAL BOOLEANO") ++ (putTabs (tabs+2) (show obj))
-
-    toStr (IndexArrayBool indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
-        toStr indexarray (tabs+2)
-
-    ------------------------------------------------------------------------------------
-    -- Para analizar semanticamente
-
     -- Relacion
     traversal (Relacion exprel) = traversal exprel
 
@@ -430,44 +421,8 @@ instance ToStr ExpBool where
     traversal (OperadorBoolUn token expbool) = do
         traversal expbool
 
-    -- Identificador
-    traversal (IdBool token) = do
-        let (l,c) = tkPos token in (
-            checkType (tkToStr token) "bool" l c)
-
     -- Literal
     traversal (LitBool token) = state (\s -> (Right "bool", s))
-
-------------------------------------------------------------------------------------
--- Expresion de caracteres
-data ExpChar =
-    SiguienteChar ExpChar TkObject
-    | AnteriorChar ExpChar TkObject
-    | IdChar TkObject
-    | LitChar TkObject
-    | IndexArrayChar ExpArray
-    deriving Show
-
-instance ToStr ExpChar where
-    ------------------------------------------------------------------------------------
-    -- Para imprimir AST
-    toStr (SiguienteChar expchar obj) tabs = putTabs tabs "SIG_CHAR" ++
-        toStr expchar (tabs+2) ++
-        putTabs (tabs+2) (show obj)
-
-    toStr (AnteriorChar expchar obj) tabs = putTabs tabs "ANT_CHAR" ++
-        toStr expchar (tabs+2) ++
-        putTabs (tabs+2) (show obj)
-
-    toStr (IdChar obj) tabs = putTabs tabs "IDENTIFICADOR" ++ (putTabs (tabs+2) (show obj))
-
-    toStr (LitChar obj) tabs = (putTabs tabs "LITERAL DE CARACTER") ++ (putTabs (tabs+2) (show obj))
-
-    toStr (IndexArrayChar indexarray) tabs = putTabs tabs "ARREGLO INDEXADO" ++
-        toStr indexarray (tabs+2)
-
-    ------------------------------------------------------------------------------------
-    -- Para analizar semanticamente
 
     -- Siguiente caracter
     traversal (SiguienteChar expchar obj) =
@@ -477,54 +432,18 @@ instance ToStr ExpChar where
     traversal (AnteriorChar expchar obj) =
         traversal expchar
 
-    -- Identificador
-    traversal (IdChar token) =
-        let (l,c) = tkPos token in (
-            do
-                inSTable (tkToStr token) l c
-                checkType (tkToStr token) "char" l c
-        )
-
     -- Literal
     traversal (LitChar token) = state (\s -> (Right "char", s))
-
--- Expresion de arreglos
-data ExpArray =
-    ConcatenacionArray ExpArray TkObject ExpArray
-    | ShiftArray TkObject ExpArray
-    | IndexacionArray ExpArray ExpArit
-    | IdArray TkObject
-    deriving Show
-
-instance ToStr ExpArray where
-    toStr (ConcatenacionArray exparray1 obj exparray2) tabs =
-        putTabs tabs "CONCAT_ARR" ++
-        toStr exparray1 (tabs+2) ++
-        putTabs (tabs+2) (show obj) ++
-        toStr exparray2 (tabs+2)
-
-    toStr (ShiftArray obj exparray) tabs =
-        putTabs tabs "SHIF_ARR" ++
-        putTabs (tabs+2) (show obj) ++
-        toStr exparray (tabs+2)
-
-    toStr (IndexacionArray exparray exparit) tabs =
-        putTabs tabs "INDEX_ARR" ++
-        putTabs (tabs+2) "arreglo:" ++ toStr exparray (tabs+2) ++
-        putTabs (tabs+2) "indice:" ++ toStr exparit (tabs+2)
-
-    toStr (IdArray obj) tabs =
-        putTabs tabs "IDENTIFICADOR" ++ (putTabs (tabs+2) (show obj))
 
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
 data Instruccion =
     IfInstr IfInstr
     | ForInstr ForInstr
-    | WhileInstr ExpBool [Instruccion]
+    | WhileInstr Expresion [Instruccion]
     | IOInstr IOInstr
     | AsignacionInstr Inicializacion
-    | AsignacionIndexArrayInstr ExpArray Expresion
+    | AsignacionIndexArrayInstr Expresion Expresion
     | IncAlcanceInstr IncAlcanceInstr
     | PuntoInstr PuntoInstr
     -- | Asignacion (ver arriba en inicializacion)
@@ -566,8 +485,8 @@ instance ToStr Instruccion where
 
 -- Instrucción de If
 data IfInstr =
-    If ExpBool [Instruccion]
-    | IfOtherwise ExpBool [Instruccion] [Instruccion]
+    If Expresion [Instruccion]
+    | IfOtherwise Expresion [Instruccion] [Instruccion]
     deriving Show
 
 instance ToStr IfInstr where
@@ -585,15 +504,15 @@ data ForInstr =
     For
         TkObject    -- posicion
         TkObject    -- id
-        ExpArit     -- from
-        ExpArit     -- to
+        Expresion     -- from
+        Expresion     -- to
         [Instruccion] -- Instruccion
     | ForStep
         TkObject    -- posicion
         TkObject    -- id
-        ExpArit     -- from
-        ExpArit     -- to
-        ExpArit     -- step
+        Expresion     -- from
+        Expresion     -- to
+        Expresion     -- step
         [Instruccion] -- Instruccion
     deriving Show
 
@@ -657,7 +576,7 @@ data PuntoInstr =
     Punto
         TkObject -- Solo id
         TkObject -- . position
-        ExpArit -- id o num
+        Expresion -- id o num
     deriving Show
 
 instance ToStr PuntoInstr where

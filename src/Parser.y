@@ -144,7 +144,7 @@ Expresion :
           | Expresion '::' Expresion    { ConcatenacionArray $1 $2 $3 }
           | '$' Expresion               { ShiftArray $1 $2 }
           | Expresion '[' Expresion ']' { IndexacionArray $1 $3 }
-          | '#' Expresion               { Ascii $2 }
+          | '#' Expresion               { Ascii $1 $2 }
           | '(' Expresion ')'           { $2 }
           | id                          { Ident $1 }
 
