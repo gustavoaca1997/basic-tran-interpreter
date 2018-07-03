@@ -62,7 +62,7 @@ varsToSTable [] auxTable  =
     -- pushSTable auxTable
     state (
         \s@(x:y:xs) ->
-            (Right "", (x `H.union` y):xs)
+            (Right "", (x `H.union` y):y:xs)
     )
 varsToSTable ((Variables inits tipo):vars) auxTable = do
     ret <- initsToSTable inits tipo auxTable
@@ -118,7 +118,7 @@ initsToSTable ((Declaracion token):xs) tipo auxTable
 
 -- Función que recibe una lista de instrucciones y las recorre para analizar semanticamente
 traverseList :: [Instruccion] ->  SymbolTableState
-traverseList [] = pushSTable H.empty
+traverseList [] = state(\s -> (Right "", s))
 traverseList (x:xs) = do
     ret <- traversal x
     (case ret of
@@ -750,6 +750,7 @@ instance ToStr IncAlcanceInstr where
                                 traverseList insts))
 
     traversal (SinDeclaracion tkobject insts) = do
+        pushSTable H.empty
         traverseList insts
         
 --------------------------------------------------------------------
