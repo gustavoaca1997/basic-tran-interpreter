@@ -191,20 +191,24 @@ instance ToStr Inicializacion where
                 (case ret of
                     Left err -> return ret
                     Right tipo ->
-                        -- Ahora chequeamos que el tipo de datos
-                        -- coincida con la expresion
-                        do
-                            ret' <- traversal expresion
-                            (case ret' of
-                                Left err -> return ret'
-                                Right tipo_exp -> 
-                                    do
-                                        ret_id <- inSTable (tkToStr token) l c
-                                        let tipo_id = fromRight "" ret_id in
-                                            if (tipo_id /= tipo_exp) then
-                                                return $ Left $ "Asignacion de " ++ tipo_exp ++ " a " ++ tipo_id ++ " en la posicion " ++ show(l,c) ++ ": error semantico"
-                                                else
-                                                    return $ ret_id)))
+                        -- Chequeamos que el identificador no sea un iterador
+                        if tipo == "iter" then
+                            return $ Left $ "Asignacion a iterador no permitida, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                            else
+                                -- Ahora chequeamos que el tipo de datos
+                                -- coincida con la expresion
+                                do
+                                    ret' <- traversal expresion
+                                    (case ret' of
+                                        Left err -> return ret'
+                                        Right tipo_exp -> 
+                                            do
+                                                ret_id <- inSTable (tkToStr token) l c
+                                                let tipo_id = fromRight "" ret_id in
+                                                    if (tipo_id /= tipo_exp) then
+                                                        return $ Left $ "Asignacion de " ++ tipo_exp ++ " a " ++ tipo_id ++ " en la posicion " ++ show(l,c) ++ ": error semantico"
+                                                        else
+                                                            return $ ret_id)))
 
     -- Declaracion
     traversal (Declaracion tkobject) =
