@@ -128,6 +128,9 @@ traverseList (x:xs) = do
                         IncAlcanceInstr instr -> do
                             popSTable
                             traverseList xs
+                        ForInstr instr -> do
+                            popSTable
+                            traverseList xs
                         _ -> do
                             traverseList xs)
 
@@ -562,6 +565,8 @@ instance ToStr Instruccion where
 
     traversal (IfInstr x) = traversal x
 
+    traversal (ForInstr x) = traversal x
+
     traversal (EmptyInstr) = state(\s -> (Right "", s))
 --------------------------------------------------------------------
 --------------------------------------------------------------------
@@ -631,6 +636,8 @@ data ForInstr =
     deriving Show
 
 instance ToStr ForInstr where
+    --------------------------------------------------------------------
+    -- Para imprimir AST
     toStr (For _ _ from to bloque) tabs = putTabs tabs "ITERACION DETERMINADA" ++
         putTabs (tabs+2) "inicio:" ++ toStr from (tabs+2) ++
         putTabs (tabs+2) "final:" ++ toStr to (tabs+2) ++
@@ -640,6 +647,58 @@ instance ToStr ForInstr where
         putTabs (tabs+2) "final:" ++ toStr to (tabs+2) ++
         putTabs (tabs+2) "step:" ++ toStr step (tabs+2) ++
         putTabs (tabs+2) "bloque:" ++ printLista tabs bloque
+
+    --------------------------------------------------------------------
+    -- Para analizar semanticamente
+
+    -- For sin step
+    traversal (For token ident exp_from exp_to insts) = do 
+        ret <- analizarIterDet token ident exp_from exp_to Nothing
+        (case ret of
+            Left err -> return ret
+            Right _ ->
+                traverseList insts)
+
+    -- For con step
+    traversal (ForStep token ident exp_from exp_to exp_step insts) = do
+        ret <- analizarIterDet token ident exp_from exp_to (Just exp_step)
+        (case ret of
+            Left err -> return ret
+            Right _ ->
+                traverseList insts)
+        
+-- Funcion para analizar las iteraciones determinadas
+analizarIterDet :: TkObject -> TkObject -> Expresion -> Expresion -> Maybe Expresion -> SymbolTableState
+analizarIterDet token ident exp_from exp_to step =
+    do
+        -- Se declara el iterador
+        pushSTable $ H.singleton (tkToStr ident) "iter"
+        -- Analizamos ambas expresiones
+        ret_from <- traversal exp_from
+        ret_to <- traversal exp_to
+
+        ret_step <- (case step of
+            Nothing -> return $ Right "int"
+            Just exp_step -> do traversal exp_step )
+
+        (case ret_from of
+            Left err -> return ret_from
+            Right tipo_from ->
+                case ret_to of
+                    Left err -> return ret_to
+                    Right tipo_to ->
+                        case ret_step of
+                            Left err -> return ret_step
+                            Right tipo_step ->
+                                -- Chequeamos los tipos de las expresiones
+                                if tipo_from /= "int" then
+                                    return $ Left $ "Limite inferior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                    else if tipo_to /= "int" then
+                                        return $ Left $ "Limite superior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                    else if tipo_step /= "int" then
+                                        return $ Left $ "El paso de la iteracion determinada no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                    else
+                                        return $ Right "")
 
 --------------------------------------------------------------------        
 -- Instrucción de I/O
