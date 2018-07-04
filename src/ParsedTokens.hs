@@ -581,6 +581,8 @@ instance ToStr Instruccion where
 
     traversal (IOInstr x) = traversal x
 
+    traversal (PuntoInstr x) = traversal x
+
     traversal (EmptyInstr) = state(\s -> (Right "", s))
 --------------------------------------------------------------------
 --------------------------------------------------------------------
@@ -796,9 +798,24 @@ data PuntoInstr =
     deriving Show
 
 instance ToStr PuntoInstr where
+    --------------------------------------------------------------------
+    -- Para imprimir AST
     toStr (Punto (TkObject (TkId id) _ _) _ expresion) tabs = putTabs tabs "INSTR_PUNTO" ++
         putTabs (tabs+2) "variable:" ++ id ++
         putTabs (tabs+2) "expresion:" ++ toStr expresion (tabs+2)
+
+    --------------------------------------------------------------------
+    -- Para analizar semanticamente la instruccion
+    traversal (Punto identificador token expresion) = 
+        let (l,c) = tkPos identificador in
+        do
+            ret_id <- checkType (tkToStr identificador) "int" l c
+            (case ret_id of
+                Left err -> return $ ret_id
+                Right tipo ->
+                    let (l',c') = tkPos token in
+                    do
+                        expIsOfType expresion "int" (l', c'))
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
