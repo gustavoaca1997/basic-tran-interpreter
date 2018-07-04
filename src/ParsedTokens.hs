@@ -571,6 +571,8 @@ instance ToStr Instruccion where
 
     traversal (ForInstr x) = traversal x
 
+    traversal (IOInstr x) = traversal x
+
     traversal (EmptyInstr) = state(\s -> (Right "", s))
 --------------------------------------------------------------------
 --------------------------------------------------------------------
@@ -704,7 +706,7 @@ analizarIterDet token ident exp_from exp_to step =
                                     else
                                         return $ Right "")
 
---------------------------------------------------------------------        
+--------------------------------------------------------------------
 -- Instrucción de I/O
 data IOInstr =
     Print TkObject Expresion
@@ -712,6 +714,8 @@ data IOInstr =
     deriving Show
 
 instance ToStr IOInstr where
+    --------------------------------------------------------------------
+    -- Para imprimir ASt
     toStr (Print _ expresion) tabs = putTabs tabs "INSTRUCCION I/O" ++
         putTabs (tabs+2) "funcion: print" ++
         putTabs (tabs+2) "expresion:" ++
@@ -719,6 +723,27 @@ instance ToStr IOInstr where
     toStr (Read _ variable) tabs = putTabs tabs "INSTRUCCION I/O" ++
         putTabs (tabs+2) "funcion: read" ++
         putTabs (tabs+2) "variable:" ++ show variable
+
+    --------------------------------------------------------------------
+    -- Para el analizis semantico
+    -- Print
+    traversal (Print token expresion) = do
+        traversal expresion
+
+    -- Read
+    traversal (Read token identificador) = 
+        let (l,c) = tkPos identificador in
+        (do
+            ret <- inSTable (tkToStr identificador) l c
+            (case ret of
+                Left err -> return ret
+                Right tipo ->
+                    -- Chequear si la variable es int, bool, char
+                    if tipo `elem` ["int", "bool", "char"] then
+                        return ret
+                        else
+                            return $ Left $ "Instruccion read aplicada a un identificador que no es int, bool o char, en la posicion " ++ show (l,c) ++ ": error semantico"))
+
 ----------------------------------------------------------------------------
 -- Instrucción de Alcance
 data IncAlcanceInstr =
