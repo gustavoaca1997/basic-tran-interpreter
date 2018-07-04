@@ -191,7 +191,7 @@ AsignacionIndexArray:
     Expresion '[' Expresion ']' '<-' Expresion           { AsignacionIndexArrayInstr (IndexacionArray $1 $2 $3) $5 $6}
 
 -- Iteración Indeterminada
-IteracionInd : While Expresion '->' Bloque end            { WhileInstr $2 $4 }
+IteracionInd : While Expresion '->' Bloque end            { WhileInstr $1 $2 $4 }
 
 -- Alcance
 IncAlcance : With Variables begin Bloque end            { ConDeclaracion $1 $2 $4 }

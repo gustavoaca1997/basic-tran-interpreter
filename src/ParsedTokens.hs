@@ -513,7 +513,7 @@ instance ToStr Expresion where
 data Instruccion =
     IfInstr IfInstr
     | ForInstr ForInstr
-    | WhileInstr Expresion [Instruccion]
+    | WhileInstr TkObject Expresion [Instruccion]
     | IOInstr IOInstr
     | AsignacionInstr Inicializacion
     | AsignacionIndexArrayInstr Expresion TkObject Expresion
@@ -530,7 +530,7 @@ instance ToStr Instruccion where
 
     toStr (ForInstr x) tabs = putTabs tabs "" ++ toStr x tabs
 
-    toStr (WhileInstr expbool y) tabs = putTabs tabs "ITERACION INDETERMINADA" ++
+    toStr (WhileInstr token expbool y) tabs = putTabs tabs "ITERACION INDETERMINADA" ++
         putTabs (tabs+2) "guardia:" ++ toStr expbool (tabs+2) ++
         putTabs (tabs+2) "bloque:" ++ printLista tabs y
 
@@ -570,6 +570,14 @@ instance ToStr Instruccion where
     traversal (IfInstr x) = traversal x
 
     traversal (ForInstr x) = traversal x
+
+    traversal (WhileInstr token expbool insts) = do
+        ret <- expIsOfType expbool "bool" (tkPos token)
+        (case ret of
+            Left err -> return ret
+            Right tipo ->
+                do
+                    traverseList insts)
 
     traversal (IOInstr x) = traversal x
 
