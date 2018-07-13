@@ -427,33 +427,45 @@ instance ToStr Expresion where
     -- Expresion relacional
     -- Menor que
     traversal (MenorQue exparit1 token exparit2) = do
-        analizarOpBin exparit1 token exparit2 "int"
-        return $ Right "bool"
+        ret <- analizarOpBin exparit1 token exparit2 "int"
+        (case ret of
+            Left err -> return ret
+            Right _ -> return $ Right "bool")
 
     -- Mayor que
     traversal (MayorQue exparit1 token exparit2) = do
-        analizarOpBin exparit1 token exparit2 "int"
-        return $ Right "bool"
+        ret <- analizarOpBin exparit1 token exparit2 "int"
+        (case ret of
+            Left err -> return ret
+            Right _ -> return $ Right "bool")
 
     -- Menor o igual que
     traversal (MenorIgualQue exparit1 token exparit2) = do
-        analizarOpBin exparit1 token exparit2 "int"
-        return $ Right "bool"
+        ret <- analizarOpBin exparit1 token exparit2 "int"
+        (case ret of
+            Left err -> return ret
+            Right _ -> return $ Right "bool")
 
     -- Mayor o igual que
     traversal (MayorIgualQue exparit1 token exparit2) = do
-        analizarOpBin exparit1 token exparit2 "int"
-        return $ Right "bool"
+        ret <- analizarOpBin exparit1 token exparit2 "int"
+        (case ret of
+            Left err -> return ret
+            Right _ -> return $ Right "bool")
 
     -- Igual que
     traversal (Igual exparit1 token exparit2) = do
-        analizarOpBin exparit1 token exparit2 "int"
-        return $ Right "bool"
+        ret <- analizarOpBin exparit1 token exparit2 "int"
+        (case ret of
+            Left err -> return ret
+            Right _ -> return $ Right "bool")
 
     -- Distinto que
     traversal (Distinto exparit1 token exparit2) = do
-        analizarOpBin exparit1 token exparit2 "int"
-        return $ Right "bool"
+        ret <- analizarOpBin exparit1 token exparit2 "int"
+        (case ret of
+            Left err -> return ret
+            Right _ -> return $ Right "bool")
 
     -------------------------------------------------------------------------------
     -- Expresion booleana
