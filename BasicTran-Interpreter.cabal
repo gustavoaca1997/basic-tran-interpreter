@@ -32,6 +32,9 @@ library
       Parser
       Semantic
       SymbolTable
+      Interprete
+      Type
+      ValuesTable
   other-modules:
       Paths_BasicTran_Interpreter
   hs-source-dirs:

@@ -5,13 +5,19 @@ import Control.Monad.State
 import qualified Data.HashMap.Lazy as H
 import Data.Either
 import Data.List
+import qualified ValuesTable as VT
 
 -- Typeclass para poder imprimir el Arból Sintáctica Abstracto
 class ToStr a where
     -- Funcion que convierte en string un token parseado
     -- donde el entero es el número de tabs
     toStr :: a -> Int -> String
+
+    -- Funcion que analiza semanticamente un token
     traversal :: a -> SymbolTableState
+
+    -- Funcion que interpreta una instruccion o expresion
+    evaluar :: a -> VT.ValuesTableState
 
 
 ----------------------------------------------------------------------------
