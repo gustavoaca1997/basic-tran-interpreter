@@ -37,6 +37,20 @@ analizarOpBin exparit1 token exparit2 tipo = do
                         else
                             return $ ret1))
 
+-- Funcion que analiza semanticamente la declaracion de un tipo arreglo
+arrayIsRight :: Tipo -> SymbolTableState
+arrayIsRight (TipoArreglo token expresion tipo_arr)= do
+    ret <- expIsOfType expresion "int" (tkPos token)
+    (case ret of
+        Left err -> return ret
+        Right _ ->
+            case tipo_arr of
+                -- chequeamos si es de varias dimensiones
+                TipoArreglo _ _ _ ->
+                    arrayIsRight tipo_arr
+                _ ->
+                    return ret)
+
 -- Funcion que chequea si una expresion es del tipo correcto
 expIsOfType :: Expresion -> String -> (Int, Int) -> SymbolTableState
 expIsOfType expresion tipo (l, c) = do
@@ -109,7 +123,8 @@ initsToSTable ((Declaracion token):xs) tipo auxTable
         -- Chequeamos el tipo
         check_type <- (case tipo of
             TipoArreglo token expresion tipo_arr ->
-                expIsOfType expresion "int" (tkPos token)
+                -- expIsOfType expresion "int" (tkPos token)
+                arrayIsRight tipo
             _ -> return $ Right $ (tipoToStr tipo) )
         (case check_type of
             Left err -> return check_type
