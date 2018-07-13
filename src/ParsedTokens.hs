@@ -289,9 +289,8 @@ data Expresion =
     | Distinto Expresion TkObject Expresion
 
     ------------------------------------------------------------------------------------
-    -- Expresión Booleana/Lógica
-    | Relacion Expresion -- 2 + n <= x
-    | OperadorBoolBin Expresion TkObject Expresion  -- B and (x > 2)
+    | And Expresion TkObject Expresion  -- B and (x > 2)
+    | Or Expresion TkObject Expresion  -- B and (x > 2)
     | OperadorBoolUn TkObject Expresion
     | LitBool TkObject  -- True, False
 
@@ -358,9 +357,10 @@ instance ToStr Expresion where
 
     ------------------------------------------------------------------------------------
     -- Expresion booleana
-    toStr (Relacion exprel) tabs = putTabs tabs "RELACION" ++ toStr exprel (tabs+2)
+    toStr (And expbool1 obj expbool2) tabs = putTabs tabs "AND" ++
+        toStr expbool1 (tabs+2) ++ (putTabs (tabs+2) (show obj)) ++ toStr expbool2 (tabs+2)
 
-    toStr (OperadorBoolBin expbool1 obj expbool2) tabs = putTabs tabs "OPERADOR_BOOL_BIN" ++
+    toStr (Or expbool1 obj expbool2) tabs = putTabs tabs "OR" ++
         toStr expbool1 (tabs+2) ++ (putTabs (tabs+2) (show obj)) ++ toStr expbool2 (tabs+2)
 
     toStr (OperadorBoolUn obj expbool) tabs = putTabs tabs "OPERADOR_BOOL_UN" ++
@@ -484,11 +484,10 @@ instance ToStr Expresion where
 
     -------------------------------------------------------------------------------
     -- Expresion booleana
-    -- Relacion
-    traversal (Relacion exprel) = traversal exprel
-
     -- and, or
-    traversal (OperadorBoolBin expbool1 token expbool2) = do
+    traversal (And expbool1 token expbool2) = do
+        analizarOpBin expbool1 token expbool2 "bool"
+    traversal (Or expbool1 token expbool2) = do
         analizarOpBin expbool1 token expbool2 "bool"
 
     -- not
