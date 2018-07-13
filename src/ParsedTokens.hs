@@ -478,7 +478,10 @@ instance ToStr Expresion where
 
     -- not
     traversal (OperadorBoolUn token expbool) = do
-        traversal expbool
+        ret <- expIsOfType expbool "bool" (tkPos token)
+        (case ret of
+            Left err -> return ret
+            Right _  -> return $ Right "bool")
 
     -- Literal
     traversal (LitBool token) = state (\s -> (Right "bool", s))
@@ -486,12 +489,25 @@ instance ToStr Expresion where
     -------------------------------------------------------------------------------
     -- Expresion de caracteres
     -- Siguiente caracter
-    traversal (SiguienteChar expchar obj) =
-        traversal expchar
+    traversal (SiguienteChar expchar token) = do
+        let t = "char"
+        ret <- expIsOfType expchar t (tkPos token)
+        (case ret of
+            Left err -> return ret
+            Right _  -> return $ Right t)
 
     -- Caracter anterior
-    traversal (AnteriorChar expchar obj) =
-        traversal expchar
+    traversal (AnteriorChar expchar token) =
+        traversal (SiguienteChar expchar token)
+
+    -- Ascii, el tipo de expresion es numerico pero debe tener una
+    -- expresion de tipo caracter
+    traversal (Ascii token expresion) = do
+        let t = "char"
+        ret <- expIsOfType expresion "char" (tkPos token)
+        (case ret of
+            Left err -> return ret
+            Right _ -> return $ Right "int")
 
     -- Literal
     traversal (LitChar token) = state (\s -> (Right "char", s))
