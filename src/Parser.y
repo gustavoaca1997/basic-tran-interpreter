@@ -134,8 +134,8 @@ Expresion :
           | Expresion "--"              { AnteriorChar $1 $2 }
           | caracter                    { LitChar $1 }
         -- Expresiones Booleanas
-          | Expresion and Expresion     { OperadorBoolBin $1 $2 $3 }
-          | Expresion or Expresion      { OperadorBoolBin $1 $2 $3 }
+          | Expresion and Expresion     { And $1 $2 $3 }
+          | Expresion or Expresion      { Or $1 $2 $3 }
           | not Expresion  %prec NEG    { OperadorBoolUn $1 $2 }
           | true                        { LitBool $1 }
           | false                       { LitBool $1 }
