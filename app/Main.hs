@@ -22,5 +22,5 @@ main = do
             Right _ -> do
                 (ret, _) <- runStateT (interprete ast) [empty]
                 (case ret of
-                    Left err -> print err
+                    Left err -> putStrLn err
                     Right _ -> return ()))

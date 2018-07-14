@@ -614,10 +614,18 @@ instance ToStr Expresion where
         evaluarOpBin expresion1 token expresion2 (*)
 
     -- Division
-    evaluar (Div expresion1 token expresion2) = do
-        evaluarOpBin expresion1 token expresion2 divType
+    evaluar (Div expresion1 token expresion2) = 
+        do
+            ret2 <- evaluar expresion2
+            (case ret2 of
+                Left err -> return ret2
+                -- Division por 0
+                Right (Int 0) ->
+                    return $ Left $ "Division por cero en la posicion " ++ show (tkPos token)
+                Right _ ->
+                    evaluarOpBin expresion1 token expresion2 divType)
 
-    -- Division
+    -- Modulo
     evaluar (Mod expresion1 token expresion2) = do
         evaluarOpBin expresion1 token expresion2 modType
 
