@@ -7,6 +7,7 @@ data Type =
     | Bool Bool
     | Array [Type]
     | None
+    deriving Eq
 
 instance Show Type where
     show (Int int) = show int
@@ -16,3 +17,8 @@ instance Show Type where
     show (Bool bool) = show bool
 
     show (Array array) = show array
+
+instance Num Type where
+    Int a + Int b = Int $ a + b
+    Int a - Int b = Int $ a - b
+    Int a * Int b = Int $ a * b

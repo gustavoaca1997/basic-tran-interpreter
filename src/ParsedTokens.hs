@@ -156,6 +156,10 @@ traverseList (x:xs) = do
                         _ -> do
                             traverseList xs)
 
+----------------------------------------------------------------------------
+--------------------FUNCIONES PARA EL INTERPRETADOR ------------------------
+----------------------------------------------------------------------------
+-- Funcion que evalua una lista de instrucciones
 evaluarList :: [Instruccion] -> VT.ValuesTableState
 evaluarList [] = return $ Right None
 evaluarList (x:xs) = do
@@ -170,6 +174,20 @@ evaluarList (x:xs) = do
                 _ ->
                     evaluarList xs)
 
+-- Funcion que evalua una operacion binaria
+evaluarOpBin :: Expresion -> TkObject -> Expresion -> (Type -> Type -> Type) -> VT.ValuesTableState
+evaluarOpBin expresion1 token expresion2 operador = do
+    ret1 <- evaluar expresion1
+    ret2 <- evaluar expresion2
+    (case ret1 of
+        -- Chequeamos si hubo un error dinamico en la primera expresion
+        Left err -> return ret1
+        Right arit1 ->
+            case ret2 of
+                -- Chequeamos si hubo un error dinamico en la segunda expresion
+                Left err -> return ret2
+                Right arit2 ->
+                    return $ Right $ arit1 `operador` arit2)
 
 ----------------------------------------------------------------------------
 --------------------FUNCIONES PARA IMPRIMIR EL AST -------------------------
@@ -584,18 +602,12 @@ instance ToStr Expresion where
     -- Expresiones aritmeticas
 
     -- Suma
-    evaluar (Suma expresion1 token expresion2) = do
-        ret1 <- evaluar expresion1
-        ret2 <- evaluar expresion2
-        (case ret1 of
-            -- Chequeamos si hubo un error dinamico en la primera expresion
-            Left err -> return ret1
-            Right (Int val1) ->
-                case ret2 of
-                    -- Chequeamos si hubo un error dinamico en la segunda expresion
-                    Left err -> return ret2
-                    Right (Int val2) ->
-                        return $ Right $ Int $ val1 + val2)
+    evaluar (Suma expresion1 token expresion2) =
+        evaluarOpBin expresion1 token expresion2 (+)
+
+    -- Resta
+    evaluar (Resta expresion1 token expresion2) = do
+        evaluarOpBin expresion1 token expresion2 (-)
 
     -- Literal
     evaluar (LitArit (TkObject (TkNum str) _ _)) =
