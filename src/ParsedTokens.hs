@@ -621,13 +621,20 @@ instance ToStr Expresion where
                 Left err -> return ret2
                 -- Division por 0
                 Right (Int 0) ->
-                    return $ Left $ "Division por cero en la posicion " ++ show (tkPos token)
+                    return $ Left $ "Excepcion: Division por cero en la posicion " ++ show (tkPos token)
                 Right _ ->
                     evaluarOpBin expresion1 token expresion2 divType)
 
     -- Modulo
     evaluar (Mod expresion1 token expresion2) = do
-        evaluarOpBin expresion1 token expresion2 modType
+        ret2 <- evaluar expresion2
+        (case ret2 of
+            Left err -> return ret2
+            -- Division por 0
+            Right (Int 0) ->
+                return $ Left $ "Excepcion: Division por cero en la posicion " ++ show (tkPos token)
+            Right _ ->
+                evaluarOpBin expresion1 token expresion2 modType)
 
     -- Menos Unario
     evaluar (MenosUnario token expresion) = do
