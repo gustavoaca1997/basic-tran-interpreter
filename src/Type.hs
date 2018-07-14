@@ -22,3 +22,7 @@ instance Num Type where
     Int a + Int b = Int $ a + b
     Int a - Int b = Int $ a - b
     Int a * Int b = Int $ a * b
+
+-- Funcion para dividir
+divType :: Type -> Type -> Type
+divType (Int a) (Int b) = Int $ a `div` b
