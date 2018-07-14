@@ -7,7 +7,6 @@ data Type =
     | Bool Bool
     | Array [Type]
     | None
-    deriving Eq
 
 instance Show Type where
     show (Int int) = show int
@@ -19,9 +18,25 @@ instance Show Type where
     show (Array array) = show array
 
 instance Num Type where
+    None + _ = None
     Int a + Int b = Int $ a + b
+
+    None - _ = None
     Int a - Int b = Int $ a - b
+
+    None * _ = None
     Int a * Int b = Int $ a * b
+
+
+instance Eq Type where
+    Int a == Int b = Bool $ a == b
+    Int a /= Int b = Bool $ a /= b
+
+instance Ord Type where
+    Int a > Int b = Bool $ a > b
+    Int a >= Int b = Bool $ a >= b
+    Int a < Int b = Bool $ a < b
+    Int a < Int b = Bool $ a <= b
 
 -- Funcion para dividir
 divType :: Type -> Type -> Type
