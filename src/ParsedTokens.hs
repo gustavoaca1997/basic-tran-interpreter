@@ -621,6 +621,15 @@ instance ToStr Expresion where
     evaluar (Mod expresion1 token expresion2) = do
         evaluarOpBin expresion1 token expresion2 modType
 
+    -- Menos Unario
+    evaluar (MenosUnario token expresion) = do
+        -- Evaluamos la expresion y chequeamos si hubo un error
+        ret <- evaluar expresion
+        (case ret of
+            Left err -> return ret
+            Right (Int a) ->
+                return $ Right $ Int $ -a)
+
     -- Literal
     evaluar (LitArit (TkObject (TkNum str) _ _)) =
         let numero = read str :: Int in
