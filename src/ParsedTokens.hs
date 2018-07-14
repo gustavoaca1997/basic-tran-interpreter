@@ -617,6 +617,10 @@ instance ToStr Expresion where
     evaluar (Div expresion1 token expresion2) = do
         evaluarOpBin expresion1 token expresion2 divType
 
+    -- Division
+    evaluar (Mod expresion1 token expresion2) = do
+        evaluarOpBin expresion1 token expresion2 modType
+
     -- Literal
     evaluar (LitArit (TkObject (TkNum str) _ _)) =
         let numero = read str :: Int in

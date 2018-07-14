@@ -26,3 +26,7 @@ instance Num Type where
 -- Funcion para dividir
 divType :: Type -> Type -> Type
 divType (Int a) (Int b) = Int $ a `div` b
+
+-- Funcion para el modulo
+modType :: Type -> Type -> Type
+modType (Int a) (Int b) = Int $ a `mod` b
