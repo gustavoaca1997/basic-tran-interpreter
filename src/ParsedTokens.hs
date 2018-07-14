@@ -582,8 +582,22 @@ instance ToStr Expresion where
 
     -------------------------------------------------------------------------------
     -- Expresiones aritmeticas
+
+    -- Suma
+    evaluar (Suma expresion1 token expresion2) = do
+        ret1 <- evaluar expresion1
+        ret2 <- evaluar expresion2
+        (case ret1 of
+            -- Chequeamos si hubo un error dinamico en la primera expresion
+            Left err -> return ret1
+            Right (Int val1) ->
+                case ret2 of
+                    -- Chequeamos si hubo un error dinamico en la segunda expresion
+                    Left err -> return ret2
+                    Right (Int val2) ->
+                        return $ Right $ Int $ val1 + val2)
+
     -- Literal
-    -- traversal (LitArit token) = state (\s -> (Right "int", s))
     evaluar (LitArit (TkObject (TkNum str) _ _)) =
         let numero = read str :: Int in
             return $ Right $ Int numero
