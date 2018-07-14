@@ -6,6 +6,7 @@ import qualified Data.HashMap.Lazy as H
 import Data.Either
 import Data.List
 import qualified ValuesTable as VT
+import Type
 
 -- Typeclass para poder imprimir el Arból Sintáctica Abstracto
 class ToStr a where
@@ -155,6 +156,20 @@ traverseList (x:xs) = do
                         _ -> do
                             traverseList xs)
 
+evaluarList :: [Instruccion] -> VT.ValuesTableState
+evaluarList [] = return $ Right None
+evaluarList (x:xs) = do
+    ret <- evaluar x
+    (case ret of
+        Left err -> return ret
+        Right _ ->
+            case x of
+                IncAlcanceInstr _ -> do
+                    VT.popTable
+                    evaluarList xs
+                _ ->
+                    evaluarList xs)
+
 
 ----------------------------------------------------------------------------
 --------------------FUNCIONES PARA IMPRIMIR EL AST -------------------------
@@ -185,6 +200,10 @@ instance ToStr Programa where
     ----------------------------------------------------------------------------
     -- Para analizar semanticamente el arbol
     traversal (Programa incalcance)= traversal incalcance
+
+    ----------------------------------------------------------------------------
+    -- Para interpretar el programa
+    evaluar (Programa incalcance) = evaluar incalcance
 
 --------------------------------------------------------------------
 -- Para la declariacion, inicializacion o asignacion de una variable
@@ -556,6 +575,18 @@ instance ToStr Expresion where
     -- Shift
     traversal (ShiftArray token expresion) = do
         expIsOfType expresion "array" (tkPos token)
+
+    -------------------------------------------------------------------------------
+    -------------------------------------------------------------------------------
+    -- Para evaluar las expresiones
+
+    -------------------------------------------------------------------------------
+    -- Expresiones aritmeticas
+    -- Literal
+    -- traversal (LitArit token) = state (\s -> (Right "int", s))
+    evaluar (LitArit (TkObject (TkNum str) _ _)) =
+        let numero = read str :: Int in
+            return $ Right $ Int numero
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
 data Instruccion =
@@ -632,6 +663,13 @@ instance ToStr Instruccion where
     traversal (PuntoInstr x) = traversal x
 
     traversal (EmptyInstr) = state(\s -> (Right "", s))
+
+    ----------------------------------------------------------------
+    -- Funcion para interpretar la insruccion
+    evaluar (IOInstr instr) = evaluar instr
+
+    evaluar (EmptyInstr) = return $ Right None
+
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 -- Instrucción de If
@@ -802,6 +840,17 @@ instance ToStr IOInstr where
                         else
                             return $ Left $ "Instruccion read aplicada a un identificador que no es int, bool o char, en la posicion " ++ show (l,c) ++ ": error semantico"))
 
+    --------------------------------------------------------------------
+    -- Para evaluar la instruccion
+    -- Print
+    evaluar (Print token expresion) = do
+        ret <- evaluar expresion
+        (case ret of
+            Left err -> return ret
+            Right val -> do
+                liftIO $ print val
+                return ret)
+
 ----------------------------------------------------------------------------
 -- Instrucción de Alcance
 data IncAlcanceInstr =
@@ -836,6 +885,10 @@ instance ToStr IncAlcanceInstr where
         pushSTable H.empty
         traverseList insts
         
+    ----------------------------------------------------------------------------
+    -- Para evaluar la instruccion
+    evaluar (SinDeclaracion token insts) = do
+        evaluarList insts
 --------------------------------------------------------------------
 -- Instrucción de Punto
 data PuntoInstr =

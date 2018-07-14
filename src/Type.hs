@@ -7,3 +7,12 @@ data Type =
     | Bool Bool
     | Array [Type]
     | None
+
+instance Show Type where
+    show (Int int) = show int
+
+    show (Char char) = show char
+
+    show (Bool bool) = show bool
+
+    show (Array array) = show array

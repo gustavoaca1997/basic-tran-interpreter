@@ -19,5 +19,8 @@ main = do
         let ast = (parser tokens) in
             case (fst $ runState (semantic ast) [empty]) of
             Left err -> putStrLn err
-            Right _ -> 
-                putStrLn "Semantica correcta")
+            Right _ -> do
+                (ret, _) <- runStateT (interprete ast) [empty]
+                (case ret of
+                    Left err -> print err
+                    Right _ -> return ()))
