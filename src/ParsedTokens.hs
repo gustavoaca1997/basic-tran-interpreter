@@ -652,10 +652,19 @@ instance ToStr Expresion where
 
     -------------------------------------------------------------------------------
     -- Expresiones aritmeticas
+
+    -- Literales de caracter
     evaluar (LitChar (TkObject (TkCaracter str) _ _)) =
         let caracter = read str :: Char in
             return $ Right $ Char caracter
 
+    -- Ascii
+    evaluar (Ascii _ expresion) = do
+        ret <- evaluar expresion
+        (case ret of
+            Left err -> return ret
+            Right a -> (case a of
+                Char a -> return $ Right $ Int $ fromEnum a))
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
 data Instruccion =
