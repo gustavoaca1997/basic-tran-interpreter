@@ -7,6 +7,7 @@ import Data.Either
 import Data.List
 import qualified ValuesTable as VT
 import Type
+import qualified Text.Read as TR
 
 -- Typeclass para poder imprimir el Arból Sintáctica Abstracto
 class ToStr a where
@@ -203,12 +204,6 @@ evaluarVariables (x:xs) = do
 evaluarInicializacion :: Variables -> VT.ValuesTableState
 evaluarInicializacion (Variables [] tipo) = return $ Right None
 evaluarInicializacion (Variables (x:xs) tipo) =
-    -- Funcion para leer de la entrada estandar
-    let parse = (case (tipoToStr tipo) of
-                    "bool" -> (\x -> Bool (read x :: Bool))
-                    "int" -> (\x -> Int (read x :: Int))
-                    "char" -> (\x -> Char (read x :: Char))
-                    _ -> (\x -> None)) in
     case x of
         -- Si es una inicializacion
         Asignacion token exp -> do
@@ -226,8 +221,8 @@ evaluarInicializacion (Variables (x:xs) tipo) =
 
         Declaracion token -> do
             pila@(t:ts) <- get
-            put $ (H.insert (tkToStr token) (None) t):ts
-            return $ Right $ Undefined parse
+            put $ (H.insert (tkToStr token) (Undefined (tipoToStr tipo)) t):ts
+            return $ Right None
 
 -- Funcion para evaluar una lista de instrucciones
 evaluarInstrucciones :: [Instruccion] -> VT.ValuesTableState
@@ -237,7 +232,14 @@ evaluarInstrucciones (x:xs) = do
     (case ret of
         Left err -> return ret
         Right _ ->
-            evaluarInstrucciones xs)
+            case x of
+                -- Si es una incorporacion de alcance, nos vamos al scope
+                -- anterior
+                IncAlcanceInstr instr -> do
+                    VT.popTable
+                    evaluarInstrucciones xs
+                _ ->
+                    evaluarInstrucciones xs)
 ----------------------------------------------------------------------------
 --------------------FUNCIONES PARA IMPRIMIR EL AST -------------------------
 ----------------------------------------------------------------------------
@@ -1067,9 +1069,74 @@ instance ToStr IOInstr where
                 return ret)
 
     -- -- Read
-    -- evaluar (Read token id) = do
-    --     val <- liftIO $ getLine
-        
+    evaluar (Read token ident) = 
+        -- Identificador
+        let key = tkToStr ident in
+            do
+                -- Leemos de la entrada
+                val <- liftIO $ getLine
+                -- Obtenemos el estado actual de la pila
+                pila@(t:ts) <- get
+                -- Revisamos el valor del identificador
+                (case (H.lookup key t) of
+                                ----------------------------------------------------------------------------
+                                -- Si tiene un valor
+                                -- entero
+                                Just (Int _) ->
+                                    parseInt key val pila
+                                -- caracter
+                                Just (Char _) ->
+                                    parseChar key val pila
+                                -- booleano
+                                Just (Bool _) ->
+                                    parseBool key val pila
+                                ----------------------------------------------------------------------------
+                                -- Si no tiene un valor, pero es de tipo
+                                -- entero
+                                Just (Undefined "int") ->
+                                    parseInt key val pila
+                                -- caracter
+                                Just (Undefined "char") ->
+                                    parseChar key val pila
+                                -- booleano
+                                Just (Undefined "bool") ->
+                                    parseBool key val pila
+                                ----------------------------------------------------------------------------
+                                _ ->
+                                    error $ show (H.lookup key t))
+        -- Funciones para parsear la entrada
+        where 
+            -- Parsear entero
+            parseInt :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
+            parseInt key val (t:ts) = case (TR.readMaybe val :: Maybe Int) of
+                                            Nothing -> return $ Left $ "Excepcion: error al parsear entrada"
+                                            Just int ->
+                                                do
+                                                    put $ (H.insert key (Int int) t):ts
+                                                    return $ Right None
+            -- Parsear caracter
+            parseChar :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
+            parseChar key val (t:ts) = 
+                if length val /= 1 then
+                    return $ Left $ "Excepcion: error al parsear entrada"
+                else
+                    do
+                        put $ (H.insert key (Char (val !! 0)) t):ts
+                        return $ Right None
+
+            -- Parsear booleano
+            parseBool :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState                        
+            parseBool key val (t:ts) =
+                case val of
+                    "true" -> do
+                        put $ (H.insert key (Bool True) t):ts
+                        return $ Right None
+                    "false" -> do
+                        put $ (H.insert key (Bool False) t):ts
+                        return $ Right None
+                    _ ->
+                        return $ Left $ "Excepcion: error al parsear entrada"
+----------------------------------------------------------------------------
 ----------------------------------------------------------------------------
 -- Instrucción de Alcance
 data IncAlcanceInstr =
@@ -1108,6 +1175,7 @@ instance ToStr IncAlcanceInstr where
     -- Para evaluar la instruccion
     -- Con declaracion de variables
     evaluar (ConDeclaracion token vars insts) = do
+        VT.pushTable H.empty
         ret_vars <- evaluarVariables vars
         (case ret_vars of
             Left err -> return ret_vars
@@ -1116,6 +1184,7 @@ instance ToStr IncAlcanceInstr where
 
     -- Sin declaracion de variables
     evaluar (SinDeclaracion token insts) = do
+        VT.pushTable H.empty
         evaluarList insts
 --------------------------------------------------------------------
 -- Instrucción de Punto

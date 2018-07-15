@@ -7,7 +7,7 @@ data Type =
     | Bool Bool
     | Array [Type]
     | None
-    | Undefined (String -> Type)
+    | Undefined String
 
 instance Show Type where
     show (Int int) = show int
@@ -18,6 +18,8 @@ instance Show Type where
     show (Bool False) = "false"
 
     show (Array array) = show array
+
+    show None = "None"
 
 instance Num Type where
     Int a + Int b = Int $ a + b

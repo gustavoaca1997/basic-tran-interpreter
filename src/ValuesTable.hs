@@ -15,7 +15,7 @@ pushTable sTable' = do
         [] -> do
             put $ [H.empty]
         (x:xs) -> do
-            put $ (sTable' `H.union` x):xs)
+            put $ (sTable' `H.union` x):pila)
     return $ Right None
     -- state (
     --     \s -> ((Right None), (sTable' `H.union` (head s)):s)
