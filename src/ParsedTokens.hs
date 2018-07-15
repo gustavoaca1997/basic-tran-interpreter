@@ -678,10 +678,31 @@ instance ToStr Expresion where
     evaluar (Distinto exp1 token exp2) =
         evaluarOpBin exp1 token exp2 (\x y -> Bool $ x /= y)
 
-    -- Literal booleano
-    evaluar (LitBool (TkObject _ str _)) =
-        return $ Right $ Bool $ (read $ str :: Bool)
+    -------------------------------------------------------------------------------
+    -- Expresion booleana
 
+    -- And
+    evaluar (And exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 andType
+
+    -- Or
+    evaluar (Or exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 orType
+
+    -- Not
+    evaluar (OperadorBoolUn token exp) = do
+        ret <- evaluar exp
+        (case ret of
+            Left err -> return ret
+            Right val ->
+                return $ Right $ notType val)
+
+    -- Literal booleano
+    evaluar (LitBool (TkObject TkTrue _ _)) =
+        return $ Right $ Bool True
+
+    evaluar (LitBool (TkObject TkFalse _ _)) =
+        return $ Right $ Bool False
     -------------------------------------------------------------------------------
     -- Expresiones de caracteres
 
