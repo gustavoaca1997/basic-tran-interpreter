@@ -649,6 +649,13 @@ instance ToStr Expresion where
     evaluar (LitArit (TkObject (TkNum str) _ _)) =
         let numero = read str :: Int in
             return $ Right $ Int numero
+
+    -------------------------------------------------------------------------------
+    -- Expresiones aritmeticas
+    evaluar (LitChar (TkObject (TkCaracter str) _ _)) =
+        let caracter = read str :: Char in
+            return $ Right $ Char caracter
+
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
 data Instruccion =
@@ -910,7 +917,7 @@ instance ToStr IOInstr where
         (case ret of
             Left err -> return ret
             Right val -> do
-                liftIO $ print val
+                liftIO $ putStr $ show val
                 return ret)
 
 ----------------------------------------------------------------------------

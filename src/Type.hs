@@ -12,7 +12,7 @@ data Type =
 instance Show Type where
     show (Int int) = show int
 
-    show (Char char) = show char
+    show (Char char) = [char]
 
     show (Bool bool) = show bool
 
