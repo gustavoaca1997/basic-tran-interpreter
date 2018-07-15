@@ -332,6 +332,7 @@ data Expresion =
     | Distinto Expresion TkObject Expresion
 
     ------------------------------------------------------------------------------------
+    -- Expresion Booleana
     | And Expresion TkObject Expresion  -- B and (x > 2)
     | Or Expresion TkObject Expresion  -- B and (x > 2)
     | OperadorBoolUn TkObject Expresion
@@ -621,7 +622,7 @@ instance ToStr Expresion where
                 Left err -> return ret2
                 -- Division por 0
                 Right (Int 0) ->
-                    return $ Left $ "Excepcion: Division por cero en la posicion " ++ show (tkPos token)
+                    return $ Left $ "\nExcepcion: Division por cero en la posicion " ++ show (tkPos token)
                 Right _ ->
                     evaluarOpBin expresion1 token expresion2 divType)
 
@@ -632,7 +633,7 @@ instance ToStr Expresion where
             Left err -> return ret2
             -- Division por 0
             Right (Int 0) ->
-                return $ Left $ "Excepcion: Division por cero en la posicion " ++ show (tkPos token)
+                return $ Left $ "\nExcepcion: Division por cero en la posicion " ++ show (tkPos token)
             Right _ ->
                 evaluarOpBin expresion1 token expresion2 modType)
 
@@ -651,7 +652,38 @@ instance ToStr Expresion where
             return $ Right $ Int numero
 
     -------------------------------------------------------------------------------
-    -- Expresiones aritmeticas
+    -- Expresiones relacionales
+
+    -- Menor que
+    evaluar (MenorQue exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 (\x y -> Bool $ x < y)
+
+    -- Menor o igual que
+    evaluar (MenorIgualQue exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 (\x y -> Bool $ x <= y)
+
+    -- Mayor que
+    evaluar (MayorQue exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 (\x y -> Bool $ x > y)
+
+    -- Mayor o igual que
+    evaluar (MayorIgualQue exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 (\x y -> Bool $ x >= y)
+
+    -- Igual que
+    evaluar (Igual exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 (\x y -> Bool $ x == y)
+
+    -- Distinto que
+    evaluar (Distinto exp1 token exp2) =
+        evaluarOpBin exp1 token exp2 (\x y -> Bool $ x /= y)
+
+    -- Literal booleano
+    evaluar (LitBool (TkObject _ str _)) =
+        return $ Right $ Bool $ (read $ str :: Bool)
+
+    -------------------------------------------------------------------------------
+    -- Expresiones de caracteres
 
     -- Literales de caracter
     evaluar (LitChar (TkObject (TkCaracter str) _ _)) =

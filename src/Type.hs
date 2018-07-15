@@ -13,30 +13,35 @@ instance Show Type where
 
     show (Char char) = [char]
 
-    show (Bool bool) = show bool
+    show (Bool True) = "true"
+    show (Bool False) = "false"
 
     show (Array array) = show array
 
 instance Num Type where
-    None + _ = None
     Int a + Int b = Int $ a + b
-
-    None - _ = None
     Int a - Int b = Int $ a - b
-
-    None * _ = None
     Int a * Int b = Int $ a * b
 
-
 instance Eq Type where
-    Int a == Int b = Bool $ a == b
-    Int a /= Int b = Bool $ a /= b
+    Int a == Int b = a == b
+    Int a /= Int b = a /= b
 
 instance Ord Type where
-    Int a > Int b = Bool $ a > b
-    Int a >= Int b = Bool $ a >= b
-    Int a < Int b = Bool $ a < b
-    Int a < Int b = Bool $ a <= b
+    Int a > Int b = a > b
+    Int a >= Int b = a >= b
+    Int a < Int b = a < b
+    Int a < Int b = a <= b
+
+-- Operador booleanos
+andType :: Type -> Type -> Type
+Bool a `andType` Bool b = Bool $ a && b
+
+orType :: Type -> Type -> Type
+Bool a `orType` Bool b = Bool $ a || b
+
+notType :: Type -> Type
+notType (Bool a) = Bool $ not a
 
 -- Funcion para dividir
 divType :: Type -> Type -> Type
