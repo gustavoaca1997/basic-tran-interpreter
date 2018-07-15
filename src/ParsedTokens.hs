@@ -223,9 +223,9 @@ evaluarInicializacion (x:xs) tipo =
             ret <- evaluar tipo
             (case ret of
                 Left err -> return ret
-                Right _ -> do
+                Right val_tipo -> do
                     pila@(t:ts) <- get
-                    put $ (H.insert (tkToStr token) (Undefined (tipoToStr tipo)) t):ts
+                    put $ (H.insert (tkToStr token) val_tipo t):ts
                     evaluarInicializacion xs tipo)
 
 -- Funcion para evaluar una lista de instrucciones
@@ -349,12 +349,17 @@ instance ToStr Tipo where
         (case ret of
             Left err -> return ret
             Right (Int val) ->
-                if val <= 0 then
+                if val < 0 then
                     return $ Left $ "Excepcion: Dimension negativa, en la posicion " ++ show (tkPos token)
-                else
-                    evaluar tipo_arr)
+                else do
+                    ret' <- evaluar tipo_arr
+                    (case ret' of
+                        Left err -> return ret'
+                        Right val_tipo ->
+                            return $ Right $ Array $ replicate val val_tipo))
 
-    evaluar (TipoPrimitivo token) = return $ Right None
+    evaluar (TipoPrimitivo token) =
+        return $ Right $ Undefined (tkToStr token)
 
 -- Funcion que retorna el string del tipo
 tipoToStr :: Tipo -> String
@@ -941,6 +946,8 @@ instance ToStr Instruccion where
                 pila@(t:ts) <- get
                 put $ (H.insert (tkToStr token) val t):ts
                 return $ Right None)
+
+    -- Asignacion del elemento de un arreglo
 
 --------------------------------------------------------------------
 --------------------------------------------------------------------

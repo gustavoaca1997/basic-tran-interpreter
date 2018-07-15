@@ -19,7 +19,9 @@ instance Show Type where
 
     show (Array array) = show array
 
-    show None = "None"
+    show None = "none"
+
+    show (Undefined str) = "undefined (" ++ str ++ ")"
 
 instance Num Type where
     Int a + Int b = Int $ a + b
