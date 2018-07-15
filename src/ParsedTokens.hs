@@ -79,7 +79,7 @@ expIsOfType expresion tipo (l, c) = do
 -- y la tabla de símbolos correspondiente solo al scope actual.
 -- Retorna Left si ocurrió un error
 varsToSTable :: [Variables] -> SymbolTable -> SymbolTableState
-varsToSTable [] auxTable  = 
+varsToSTable [] auxTable  =
     -- pushSTable auxTable
     state (
         \s@(x:y:xs) ->
@@ -97,7 +97,7 @@ varsToSTable ((Variables inits tipo):vars) auxTable = do
 -- Retorna Left si ocurrió un error
 initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
 -- Si ya no hay variables por analizar
-initsToSTable [] _ auxTable = 
+initsToSTable [] _ auxTable =
     -- pushSTable auxTable
     state (
         \s@(x:xs) ->
@@ -106,7 +106,7 @@ initsToSTable [] _ auxTable =
 
 -- Si se inicializa la variable con un valor
 initsToSTable ((Asignacion token expresion):xs) tipo auxTable
-    | H.member (tkToStr token) auxTable = 
+    | H.member (tkToStr token) auxTable =
         state(\s -> (Left ("'" ++ (tkToStr token) ++ "' redeclarada en la posicion " ++ show (tkPos token) ++ ": error semantico"), [H.empty]))
     | otherwise = do
         ret <- initsToSTable xs tipo (H.insert (tkToStr token) (tipoToStr tipo) auxTable)
@@ -124,7 +124,7 @@ initsToSTable ((Asignacion token expresion):xs) tipo auxTable
 
 -- Si solo se declara la variable
 initsToSTable ((Declaracion token):xs) tipo auxTable
-    | H.member (tkToStr token) auxTable = 
+    | H.member (tkToStr token) auxTable =
         state(\s -> (Left ("'" ++ (tkToStr token) ++ "' redeclarada en la posicion " ++ show (tkPos token) ++ ": error semantico"), [H.empty]))
     | otherwise = do
         -- Chequeamos el tipo
@@ -259,7 +259,7 @@ instance ToStr Inicializacion where
                                     ret' <- traversal expresion
                                     (case ret' of
                                         Left err -> return ret'
-                                        Right tipo_exp -> 
+                                        Right tipo_exp ->
                                             do
                                                 ret_id <- inSTable (tkToStr token) l c
                                                 let tipo_id = fromRight "" ret_id in
@@ -446,7 +446,7 @@ instance ToStr Expresion where
     -- Para analizar semanticamente
 
     -- Identificador
-    traversal (Ident token) = 
+    traversal (Ident token) =
         let (l,c) = tkPos token in (
             do
                 inSTable (tkToStr token) l c
@@ -455,7 +455,7 @@ instance ToStr Expresion where
     -------------------------------------------------------------------------------
     -- Expresion aritmeticas
     -- Suma
-    traversal (Suma exparit1 token exparit2) = 
+    traversal (Suma exparit1 token exparit2) =
         analizarOpBin exparit1 token exparit2 "int"
 
     -- Resta
@@ -468,7 +468,7 @@ instance ToStr Expresion where
 
     -- Division
     traversal (Div exparit1 token exparit2) =
-        analizarOpBin exparit1 token exparit2 "int"      
+        analizarOpBin exparit1 token exparit2 "int"
 
     -- Modulo
     traversal (Mod exparit1 token exparit2) =
@@ -614,7 +614,7 @@ instance ToStr Expresion where
         evaluarOpBin expresion1 token expresion2 (*)
 
     -- Division
-    evaluar (Div expresion1 token expresion2) = 
+    evaluar (Div expresion1 token expresion2) =
         do
             ret2 <- evaluar expresion2
             (case ret2 of
@@ -673,6 +673,16 @@ instance ToStr Expresion where
             Left err -> return ret
             Right a -> (case a of
                 Char x -> return $ Right $ Char $ (toEnum $ (1 + fromEnum x) :: Char)))
+
+    -- AnteriorChar (--)
+    evaluar (AnteriorChar expresion _) = do
+        ret <- evaluar expresion
+        (case ret of
+            Left err -> return ret
+            Right a -> (case a of
+                Char x -> return $ Right $ Char $ (toEnum $ ((fromEnum x) - 1) :: Char)))
+
+
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
 data Instruccion =
@@ -790,14 +800,14 @@ instance ToStr IfInstr where
                         traverseList insts
 
     -- otherwise
-    traversal (IfOtherwise expresion token insts1 insts2) = 
+    traversal (IfOtherwise expresion token insts1 insts2) =
         do
             ret <- traversal expresion
             (case ret of
                 Left err -> return ret
-                Right tipo -> 
+                Right tipo ->
                     if tipo /= "bool" then
-                        return $ Left $ "Guardia de tipo " ++ tipo ++ " distinto a bool, en la posicion " ++ show (tkPos token) ++ ": error semantico" 
+                        return $ Left $ "Guardia de tipo " ++ tipo ++ " distinto a bool, en la posicion " ++ show (tkPos token) ++ ": error semantico"
                         else do
                             ret1 <- traverseList insts1
                             case ret1 of
@@ -840,7 +850,7 @@ instance ToStr ForInstr where
     -- Para analizar semanticamente
 
     -- For sin step
-    traversal (For token ident exp_from exp_to insts) = do 
+    traversal (For token ident exp_from exp_to insts) = do
         ret <- analizarIterDet token ident exp_from exp_to Nothing
         (case ret of
             Left err -> return ret
@@ -854,7 +864,7 @@ instance ToStr ForInstr where
             Left err -> return ret
             Right _ ->
                 traverseList insts)
-        
+
 -- Funcion para analizar las iteraciones determinadas
 analizarIterDet :: TkObject -> TkObject -> Expresion -> Expresion -> Maybe Expresion -> SymbolTableState
 analizarIterDet token ident exp_from exp_to step =
@@ -913,7 +923,7 @@ instance ToStr IOInstr where
         traversal expresion
 
     -- Read
-    traversal (Read token identificador) = 
+    traversal (Read token identificador) =
         let (l,c) = tkPos identificador in
         (do
             ret <- inSTable (tkToStr identificador) l c
@@ -970,7 +980,7 @@ instance ToStr IncAlcanceInstr where
     traversal (SinDeclaracion tkobject insts) = do
         pushSTable H.empty
         traverseList insts
-        
+
     ----------------------------------------------------------------------------
     -- Para evaluar la instruccion
     evaluar (SinDeclaracion token insts) = do
@@ -993,7 +1003,7 @@ instance ToStr PuntoInstr where
 
     --------------------------------------------------------------------
     -- Para analizar semanticamente la instruccion
-    traversal (Punto identificador token expresion) = 
+    traversal (Punto identificador token expresion) =
         let (l,c) = tkPos identificador in
         do
             ret_id <- checkType (tkToStr identificador) "int" l c
