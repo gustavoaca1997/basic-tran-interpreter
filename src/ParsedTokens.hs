@@ -665,6 +665,14 @@ instance ToStr Expresion where
             Left err -> return ret
             Right a -> (case a of
                 Char a -> return $ Right $ Int $ fromEnum a))
+
+    -- SiguienteChar (++)
+    evaluar (SiguienteChar expresion _) = do
+        ret <- evaluar expresion
+        (case ret of
+            Left err -> return ret
+            Right a -> (case a of
+                Char x -> return $ Right $ Char $ (toEnum $ (1 + fromEnum x) :: Char)))
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
 data Instruccion =
