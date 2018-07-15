@@ -220,9 +220,13 @@ evaluarInicializacion (x:xs) tipo =
                     evaluarInicializacion xs tipo)
 
         Declaracion token -> do
-            pila@(t:ts) <- get
-            put $ (H.insert (tkToStr token) (Undefined (tipoToStr tipo)) t):ts
-            evaluarInicializacion xs tipo
+            ret <- evaluar tipo
+            (case ret of
+                Left err -> return ret
+                Right _ -> do
+                    pila@(t:ts) <- get
+                    put $ (H.insert (tkToStr token) (Undefined (tipoToStr tipo)) t):ts
+                    evaluarInicializacion xs tipo)
 
 -- Funcion para evaluar una lista de instrucciones
 evaluarInstrucciones :: [Instruccion] -> VT.ValuesTableState
@@ -337,6 +341,20 @@ instance ToStr Tipo where
     toStr (TipoArreglo obj exparit tipo) tabs = putTabs tabs "TIPO ARREGLO" ++
         putTabs (tabs+2) "tamaño:" ++ toStr exparit (tabs+2) ++
         putTabs (tabs+2) "tipo de los elementos:" ++ toStr tipo (tabs+2)
+
+    --------------------------------------------------------------------
+    -- Funcion para evaluar el tipo
+    evaluar (TipoArreglo token expresion tipo_arr) = do
+        ret <- evaluar expresion
+        (case ret of
+            Left err -> return ret
+            Right (Int val) ->
+                if val <= 0 then
+                    return $ Left $ "Excepcion: Dimension negativa, en la posicion " ++ show (tkPos token)
+                else
+                    evaluar tipo_arr)
+
+    evaluar (TipoPrimitivo token) = return $ Right None
 
 -- Funcion que retorna el string del tipo
 tipoToStr :: Tipo -> String
