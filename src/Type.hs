@@ -7,6 +7,7 @@ data Type =
     | Bool Bool
     | Array [Type]
     | None
+    | Undefined (String -> Type)
 
 instance Show Type where
     show (Int int) = show int

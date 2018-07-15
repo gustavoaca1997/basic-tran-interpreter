@@ -203,6 +203,12 @@ evaluarVariables (x:xs) = do
 evaluarInicializacion :: Variables -> VT.ValuesTableState
 evaluarInicializacion (Variables [] tipo) = return $ Right None
 evaluarInicializacion (Variables (x:xs) tipo) =
+    -- Funcion para leer de la entrada estandar
+    let parse = (case (tipoToStr tipo) of
+                    "bool" -> (\x -> Bool (read x :: Bool))
+                    "int" -> (\x -> Int (read x :: Int))
+                    "char" -> (\x -> Char (read x :: Char))
+                    _ -> (\x -> None)) in
     case x of
         -- Si es una inicializacion
         Asignacion token exp -> do
@@ -221,7 +227,7 @@ evaluarInicializacion (Variables (x:xs) tipo) =
         Declaracion token -> do
             pila@(t:ts) <- get
             put $ (H.insert (tkToStr token) (None) t):ts
-            return $ Right None
+            return $ Right $ Undefined parse
 
 -- Funcion para evaluar una lista de instrucciones
 evaluarInstrucciones :: [Instruccion] -> VT.ValuesTableState
@@ -647,7 +653,11 @@ instance ToStr Expresion where
     evaluar (Ident token) = do
         pila@(t:ts) <- get
         (let Just val = H.lookup (tkToStr token) t in
-            return $ Right $ val)
+            case val of
+                None -> return $ Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+                Undefined _ -> return $ Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+                _ ->
+                    return $ Right $ val)
 
     -------------------------------------------------------------------------------
     -- Expresiones aritmeticas
@@ -1056,6 +1066,10 @@ instance ToStr IOInstr where
                 liftIO $ putStr $ show val
                 return ret)
 
+    -- -- Read
+    -- evaluar (Read token id) = do
+    --     val <- liftIO $ getLine
+        
 ----------------------------------------------------------------------------
 -- Instrucción de Alcance
 data IncAlcanceInstr =
