@@ -189,6 +189,49 @@ evaluarOpBin expresion1 token expresion2 operador = do
                 Right arit2 ->
                     return $ Right $ arit1 `operador` arit2)
 
+-- Funcion para evaluar la declaracion de variables
+evaluarVariables :: [Variables] -> VT.ValuesTableState
+evaluarVariables [] = return $ Right None
+evaluarVariables (x:xs) = do
+    ret <- evaluarInicializacion x
+    (case ret of
+        Left err -> return ret
+        Right _ ->
+            evaluarVariables xs)
+
+-- Funcion para evaluar inicializacion/declaracion de variables
+evaluarInicializacion :: Variables -> VT.ValuesTableState
+evaluarInicializacion (Variables [] tipo) = return $ Right None
+evaluarInicializacion (Variables (x:xs) tipo) =
+    case x of
+        -- Si es una inicializacion
+        Asignacion token exp -> do
+            -- Evaluamos la expresion
+            ret <- evaluar exp
+            (case ret of
+                -- Chequeamos si ocurrio un error
+                Left err -> return ret
+                -- Sino, insertamos en la tabla de simbolos
+                -- el valor de la variable
+                Right val -> do
+                    pila@(t:ts) <- get
+                    put $ (H.insert (tkToStr token) val t):ts
+                    return $ Right None)
+
+        Declaracion token -> do
+            pila@(t:ts) <- get
+            put $ (H.insert (tkToStr token) (None) t):ts
+            return $ Right None
+
+-- Funcion para evaluar una lista de instrucciones
+evaluarInstrucciones :: [Instruccion] -> VT.ValuesTableState
+evaluarInstrucciones [] = return $ Right None
+evaluarInstrucciones (x:xs) = do
+    ret <- evaluar x
+    (case ret of
+        Left err -> return ret
+        Right _ ->
+            evaluarInstrucciones xs)
 ----------------------------------------------------------------------------
 --------------------FUNCIONES PARA IMPRIMIR EL AST -------------------------
 ----------------------------------------------------------------------------
@@ -598,6 +641,13 @@ instance ToStr Expresion where
     -------------------------------------------------------------------------------
     -------------------------------------------------------------------------------
     -- Para evaluar las expresiones
+    
+    -------------------------------------------------------------------------------
+    -- Identificador
+    evaluar (Ident token) = do
+        pila@(t:ts) <- get
+        (let Just val = H.lookup (tkToStr token) t in
+            return $ Right $ val)
 
     -------------------------------------------------------------------------------
     -- Expresiones aritmeticas
@@ -815,9 +865,15 @@ instance ToStr Instruccion where
 
     ----------------------------------------------------------------
     -- Funcion para interpretar la insruccion
+
+    -- IO
     evaluar (IOInstr instr) = evaluar instr
 
+    -- Instruccion vacia
     evaluar (EmptyInstr) = return $ Right None
+
+    -- Incorporacion de Alcance
+    evaluar (IncAlcanceInstr instr) = evaluar instr
 
 --------------------------------------------------------------------
 --------------------------------------------------------------------
@@ -1036,6 +1092,15 @@ instance ToStr IncAlcanceInstr where
 
     ----------------------------------------------------------------------------
     -- Para evaluar la instruccion
+    -- Con declaracion de variables
+    evaluar (ConDeclaracion token vars insts) = do
+        ret_vars <- evaluarVariables vars
+        (case ret_vars of
+            Left err -> return ret_vars
+            Right _ ->
+                evaluarInstrucciones insts)
+
+    -- Sin declaracion de variables
     evaluar (SinDeclaracion token insts) = do
         evaluarList insts
 --------------------------------------------------------------------
