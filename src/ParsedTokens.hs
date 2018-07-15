@@ -193,17 +193,17 @@ evaluarOpBin expresion1 token expresion2 operador = do
 -- Funcion para evaluar la declaracion de variables
 evaluarVariables :: [Variables] -> VT.ValuesTableState
 evaluarVariables [] = return $ Right None
-evaluarVariables (x:xs) = do
-    ret <- evaluarInicializacion x
+evaluarVariables ((Variables inits tipo):xs) = do
+    ret <- evaluarInicializacion inits tipo
     (case ret of
         Left err -> return ret
         Right _ ->
             evaluarVariables xs)
 
 -- Funcion para evaluar inicializacion/declaracion de variables
-evaluarInicializacion :: Variables -> VT.ValuesTableState
-evaluarInicializacion (Variables [] tipo) = return $ Right None
-evaluarInicializacion (Variables (x:xs) tipo) =
+evaluarInicializacion :: [Inicializacion] -> Tipo -> VT.ValuesTableState
+evaluarInicializacion [] tipo = return $ Right None
+evaluarInicializacion (x:xs) tipo =
     case x of
         -- Si es una inicializacion
         Asignacion token exp -> do
@@ -217,12 +217,12 @@ evaluarInicializacion (Variables (x:xs) tipo) =
                 Right val -> do
                     pila@(t:ts) <- get
                     put $ (H.insert (tkToStr token) val t):ts
-                    return $ Right None)
+                    evaluarInicializacion xs tipo)
 
         Declaracion token -> do
             pila@(t:ts) <- get
             put $ (H.insert (tkToStr token) (Undefined (tipoToStr tipo)) t):ts
-            return $ Right None
+            evaluarInicializacion xs tipo
 
 -- Funcion para evaluar una lista de instrucciones
 evaluarInstrucciones :: [Instruccion] -> VT.ValuesTableState
@@ -886,6 +886,43 @@ instance ToStr Instruccion where
 
     -- Incorporacion de Alcance
     evaluar (IncAlcanceInstr instr) = evaluar instr
+
+    -- While
+    evaluar while@(WhileInstr token guardia insts) = do
+        -- Evaluamos la guardia
+        ret <- evaluar guardia
+        (case ret of
+            -- chequeamos si ocurrio un error
+            Left err -> return ret
+            Right (Bool val) ->
+                -- Revisamos si la guardia se cumple,
+                -- de no ser asi terminamos la ejecucion
+                -- del while.
+                if not val then
+                    -- salimos del loop
+                    return $ Right None
+                else do
+                    -- Evaluamos las instrucciones internas
+                    ret' <- evaluarInstrucciones insts
+                    (case ret' of
+                        -- Chequeamos si ocurrio un error
+                        Left err -> return ret'
+                        Right _ ->
+                            -- Volvemos a ejecutar el loop
+                            evaluar while))
+
+    -- Asignacion de Variable
+    evaluar (AsignacionInstr (Asignacion token exp)) = do
+        -- Evaluamos la expresion derecha
+        ret <- evaluar exp
+        (case ret of
+            -- Chequeamos si ocurrió un error
+            Left err -> return ret
+            Right val -> do
+                -- Actualizamos la tabla de simbolos
+                pila@(t:ts) <- get
+                put $ (H.insert (tkToStr token) val t):ts
+                return $ Right None)
 
 --------------------------------------------------------------------
 --------------------------------------------------------------------
