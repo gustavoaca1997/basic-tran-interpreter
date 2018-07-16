@@ -74,9 +74,11 @@ checkType key tipo l c =
     )
     where
         chequear val' =
+            let tipoe = head $ words val' in
             if (length (words val') == 0) then
                 Left $ "lista vacia 50 symboltable"
-            else  if (words val' !!0) == tipo then
+            else if tipoe == tipo then
                 Right tipo
                 else
-                    Left ("'" ++ key ++ "': variable de tipo " ++ show val' ++ " no es de tipo " ++ show tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico")
+                    if (tipo == "int" && tipoe == "iter") || (tipo == "iter" && tipoe == "int") then Right tipo
+                    else Left ("'" ++ key ++ "': variable de tipo " ++ show val' ++ " no es de tipo " ++ show tipo ++ " en la posicion " ++ show (l,c) ++ ": error semantico")

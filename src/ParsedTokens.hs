@@ -1359,11 +1359,11 @@ analizarIterDet token ident exp_from exp_to step =
                                 Left err -> return ret_step
                                 Right tipo_step ->
                                     -- Chequeamos los tipos de las expresiones
-                                    if tipo_from /= "int" then
+                                    if not $ tipo_from `elem` ["int", "iter"] then
                                         return $ Left $ "Limite inferior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                        else if tipo_to /= "int" then
+                                        else if not $ tipo_from `elem` ["int", "iter"] then
                                             return $ Left $ "Limite superior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                        else if tipo_step /= "int" then
+                                        else if not $ tipo_from `elem` ["int", "iter"] then
                                             return $ Left $ "El paso de la iteracion determinada no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
                                         else
                                             return $ Right "")
