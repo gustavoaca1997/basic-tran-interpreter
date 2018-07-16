@@ -1511,31 +1511,35 @@ instance ToStr IOInstr where
         where
             -- Parsear entero
             parseInt :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
-            parseInt key val (t:ts) = case (TR.readMaybe val :: Maybe Int) of
+            parseInt key val pila@(t:ts) = case (TR.readMaybe val :: Maybe Int) of
                                             Nothing -> return $ Left $ "Excepcion: error al parsear entrada"
                                             Just int ->
                                                 do
-                                                    put $ (H.insert key (Int int) t):ts
+                                                    -- put $ (H.insert key (Int int) t):ts
+                                                    put $ evaluarAsignacion ident pila (Int int)
                                                     return $ Right None
             -- Parsear caracter
             parseChar :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
-            parseChar key val (t:ts) =
+            parseChar key val pila@(t:ts) =
                 if length val /= 1 then
                     return $ Left $ "Excepcion: error al parsear entrada"
                 else
                     do
-                        put $ (H.insert key (Char (val !! 0)) t):ts
+                        -- put $ (H.insert key (Char (val !! 0)) t):ts
+                        put $ evaluarAsignacion ident pila (Char (val !! 0))
                         return $ Right None
 
             -- Parsear booleano
             parseBool :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
-            parseBool key val (t:ts) =
+            parseBool key val pila@(t:ts) =
                 case val of
                     "true" -> do
-                        put $ (H.insert key (Bool True) t):ts
+                        -- put $ (H.insert key (Bool True) t):ts
+                        put $ evaluarAsignacion ident pila (Bool True)
                         return $ Right None
                     "false" -> do
-                        put $ (H.insert key (Bool False) t):ts
+                        -- put $ (H.insert key (Bool False) t):ts
+                        put $ evaluarAsignacion ident pila (Bool False)
                         return $ Right None
                     _ ->
                         return $ Left $ "Excepcion: error al parsear entrada"
