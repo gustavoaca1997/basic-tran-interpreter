@@ -823,14 +823,22 @@ instance ToStr Expresion where
                 -- | IndexacionArray Expresion TkObject Expresion
     -------------------------------------------------------------------------------
     -- Expresiones de arreglos
+
+    -- Indexacion
     evaluar (IndexacionArray exp_arr token exp_indice) = do
+        -- Evaluamos el arreglo a la derecha
         ret <- evaluar exp_arr
+        -- Evaluamos el indice
         ret' <- evaluar exp_indice
         (case ret of
+            -- CHequeamos si ocurrio un error
             Left err -> return ret
+            -- Obtenemos el arreglo
             Right (Array arr) ->
                 case ret' of
+                    -- Chequeamos si ocurrio un error
                     Left err -> return ret
+                    -- Obtenemos el indice
                     Right (Int indice) ->
                         -- Chequeamos si la indexacion es correcta
                         if indice >= length arr || indice < 0 then
@@ -983,34 +991,49 @@ instance ToStr Instruccion where
 asignarIndexArray :: Expresion -> Type -> VT.ValuesTableState
 -- Dimension final
 asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
+    -- Obtenemos el estado actual de la pila
     pila@(t:ts) <- get
+    -- Analizamos el indice
     ret_indice <- evaluar exp_indice
     (case ret_indice of
+        -- Chequeamos si ocurrio un error
         Left err -> return ret_indice
+        -- Obtenemos el indice
         Right (Int indice) ->
             (let key = tkToStr ident
+                -- Obtenemos el arreglo
                  Just (Array arr) = H.lookup key t in
                     do
+                        -- Actualizamos el arreglo
                         put $ (H.insert key (Array (updateN arr indice val)) t):ts
                         return $ Right None))
 
+-- Cuando se esta en una dimension superior
 asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
+    -- Obtenemos el estado actual de la pila
     pila@(t:ts) <- get
+    -- Evaluamos el indice
     ret_indice <- evaluar exp_indice
+    -- Y la expresion de arreglo
     ret_array <- evaluar exp_array
     (case ret_indice of
+        -- Chequeamos si ocurrio un error
         Left err -> return ret_indice
+        -- Obtenemos el indice
         Right (Int indice) ->
             case ret_array of
+                -- Chequeamos si ocurrio un error
                 Left err -> return ret_array
+                -- Obtenemos el arreglo
                 Right (Array arr) -> do
+                    -- Lo modificamos recursivamente
                     asignarIndexArray exp_array $ Array $ updateN arr indice val)
 
 -- Funcion que actualiza un arreglo  en la posicion n
 updateN :: [a] -> Int -> a -> [a]
 updateN [] _ _ = []
 updateN (x:xs) 0 val = val:xs
-updateN (x:xs) n val = updateN xs (n-1) val
+updateN (x:xs) n val = x:(updateN xs (n-1) val)
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 -- Instrucción de If
