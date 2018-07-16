@@ -260,14 +260,18 @@ evaluarInstrucciones (x:xs) = do
                     evaluarInstrucciones xs)
 
 -- Funcion que obtiene el valor de una variable
-evaluarIdent :: TkObject -> [VT.ValuesTable] -> Either String Type
-evaluarIdent token [] = Left $ "Excepcion: 1Variable no inicializada en la posicion " ++ show (tkPos token)
-evaluarIdent token (t:ts) =
+evaluarIdent :: TkObject -> [VT.ValuesTable] -> Bool -> Either String Type
+evaluarIdent token [] _ = Left $ "Excepcion: 1Variable no inicializada en la posicion " ++ show (tkPos token)
+evaluarIdent token (t:ts) reading =
     case (H.lookup (tkToStr token) t) of
-        Nothing -> evaluarIdent token ts
+        Nothing -> evaluarIdent token ts reading
         ret@(Just val) ->
             case val of
-                Undefined _ -> Left $ "Excepcion: 3Variable no inicializada en la posicion " ++ show (tkPos token)
+                Undefined _ -> 
+                    if reading then
+                        Right val
+                    else
+                        Left $ "Excepcion: 3Variable no inicializada en la posicion " ++ show (tkPos token)
                 _ -> Right val
 --------------------------------------------------------------------------------------------------------------------------------
 -- Funciones para evaluar arreglos
@@ -294,7 +298,7 @@ asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
                 -- Obtenemos el arreglo
                 --  Just (Array arr) = H.lookup key t in
                     in
-                        case (evaluarIdent ident pila) of
+                        case (evaluarIdent ident pila False) of
                             ret@(Left err) -> return ret
                             Right (Array arr) ->
                                 -- Si la indexacion es inadecuada
@@ -824,7 +828,7 @@ instance ToStr Expresion where
         --         Undefined _ -> return $ Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
         --         _ ->
         --             return $ Right $ val)
-        return $ evaluarIdent token pila
+        return $ evaluarIdent token pila False
 
     -------------------------------------------------------------------------------
     -- Expresiones aritmeticas
@@ -1481,7 +1485,7 @@ instance ToStr IOInstr where
                 pila@(t:ts) <- get
                 -- Revisamos el valor del identificador
                 -- (case (H.lookup key t) of
-                (case (evaluarIdent ident pila) of    
+                (case (evaluarIdent ident pila True) of    
                                 ----------------------------------------------------------------------------
                                 -- Si tiene un valor
                                 -- entero

@@ -21,7 +21,7 @@ instance Show Type where
 
     show None = "none"
 
-    show (Undefined str) = error "Elementos del arreglo sin inicializar"
+    show (Undefined str) = error "Elemento sin inicializar"
     -- show (Undefined str) = "undefined"
 
 instance Num Type where
