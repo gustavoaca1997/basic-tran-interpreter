@@ -76,7 +76,8 @@ expIsOfType expresion tipo (l, c) = do
             let tipod = words exp_tipo1 !! 0 in
             if (length (words exp_tipo1) == 0) then
                 return $ Left $ "exp_tipo1 50 vacio"
-            else if tipod /= tipo && tipo == "int" && tipod /= "iter" then
+            else if tipo == "int" && tipod == "iter" then return $ ret1
+            else if tipod /= tipo then
                 return $ Left $ "Expresion de tipo " ++ exp_tipo1 ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l, c) ++ ": error semantico"
                 else
                     return $ ret1
