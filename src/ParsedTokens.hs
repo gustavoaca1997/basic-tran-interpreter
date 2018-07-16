@@ -940,6 +940,9 @@ instance ToStr Instruccion where
                 put $ (H.insert (tkToStr token) val t):ts
                 return $ Right None)
 
+    -- If, con y sin otherwise
+    evaluar (IfInstr x) = evaluar x
+
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 -- Instrucción de If
@@ -988,6 +991,29 @@ instance ToStr IfInstr where
                                 Left err -> return ret1
                                 Right _ -> do
                                     traverseList insts2)
+
+    --------------------------------------------------------------------
+    -- Para analizar semanticamente el arbol
+
+    -- If
+    evaluar (If guardia token insts) = do
+        ret <- evaluar guardia
+        (case ret of
+            -- El unico error al evaluar una bool expr es
+            -- variable no inicializada
+            Left err -> return ret
+            Right ret ->
+                -- Si la guardia evalua a false, no hacemos nada
+                let Bool bool = ret in
+                if not bool then return $ Right None
+                else do
+                    -- Evaluamos las instrucciones de adentro,
+                    -- si no hay errores terminamos con None
+                    ret' <- evaluarInstrucciones insts
+                    (case ret' of
+                        Left err -> return ret'
+                        Right _ ->
+                            return $ Right None))
 
 --------------------------------------------------------------------
 -- Instrucción de For
