@@ -820,6 +820,29 @@ instance ToStr Expresion where
             Right a -> (case a of
                 Char x -> return $ Right $ Char $ (toEnum $ ((fromEnum x) - 1) :: Char)))
 
+                -- | IndexacionArray Expresion TkObject Expresion
+    -------------------------------------------------------------------------------
+    -- Expresiones de arreglos
+    evaluar (IndexacionArray exp_arr token exp_indice) = do
+        ret <- evaluar exp_arr
+        ret' <- evaluar exp_indice
+        (case ret of
+            Left err -> return ret
+            Right (Array arr) ->
+                case ret' of
+                    Left err -> return ret
+                    Right (Int indice) ->
+                        -- Chequeamos si la indexacion es correcta
+                        if indice >= length arr || indice < 0 then
+                            return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
+                        else
+                            -- Chequeamos si el elemento esta iniciaizado
+                            case (arr !! indice) of
+                                Undefined _ ->
+                                    return $ Left $ "Excepcion: Elemento no inicializado en la posicion " ++ show (tkPos token)
+                                x ->
+                                    return $ Right x)
+
 
 --------------------------------- INSTRUCCIONES -------------------------------
 -- Instruccion
@@ -948,7 +971,46 @@ instance ToStr Instruccion where
                 return $ Right None)
 
     -- Asignacion del elemento de un arreglo
+    evaluar (AsignacionIndexArrayInstr exp_arr token exp) = do
+        ret <- evaluar exp
+        (case ret of
+            Left err -> return ret
+            Right val ->
+                asignarIndexArray exp_arr val)
 
+
+-- -- Funcion para evaluar la asignacion al elemento de un arreglo
+asignarIndexArray :: Expresion -> Type -> VT.ValuesTableState
+-- Dimension final
+asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
+    pila@(t:ts) <- get
+    ret_indice <- evaluar exp_indice
+    (case ret_indice of
+        Left err -> return ret_indice
+        Right (Int indice) ->
+            (let key = tkToStr ident
+                 Just (Array arr) = H.lookup key t in
+                    do
+                        put $ (H.insert key (Array (updateN arr indice val)) t):ts
+                        return $ Right None))
+
+asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
+    pila@(t:ts) <- get
+    ret_indice <- evaluar exp_indice
+    ret_array <- evaluar exp_array
+    (case ret_indice of
+        Left err -> return ret_indice
+        Right (Int indice) ->
+            case ret_array of
+                Left err -> return ret_array
+                Right (Array arr) -> do
+                    asignarIndexArray exp_array $ Array $ updateN arr indice val)
+
+-- Funcion que actualiza un arreglo  en la posicion n
+updateN :: [a] -> Int -> a -> [a]
+updateN [] _ _ = []
+updateN (x:xs) 0 val = val:xs
+updateN (x:xs) n val = updateN xs (n-1) val
 --------------------------------------------------------------------
 --------------------------------------------------------------------
 -- Instrucción de If

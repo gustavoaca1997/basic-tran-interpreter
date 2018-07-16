@@ -21,7 +21,8 @@ instance Show Type where
 
     show None = "none"
 
-    show (Undefined str) = "undefined (" ++ str ++ ")"
+    show (Undefined str) = error "Elementos del arreglo sin inicializar"
+    -- show (Undefined str) = "undefined"
 
 instance Num Type where
     Int a + Int b = Int $ a + b
