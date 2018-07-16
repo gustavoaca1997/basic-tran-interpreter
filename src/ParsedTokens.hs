@@ -253,13 +253,22 @@ evaluarInstrucciones (x:xs) = do
             case x of
                 -- Si es una incorporacion de alcance, nos vamos al scope
                 -- anterior
-                IncAlcanceInstr instr -> do
+                IncAlcanceInstr (ConDeclaracion _ _ _) -> do
                     VT.popTable
                     evaluarInstrucciones xs
                 _ ->
                     evaluarInstrucciones xs)
 
-
+-- Funcion que obtiene el valor de una variable
+evaluarIdent :: TkObject -> [VT.ValuesTable] -> Either String Type
+evaluarIdent token [] = Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+evaluarIdent token (t:ts) =
+    case (H.lookup (tkToStr token) t) of
+        Nothing -> Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+        ret@(Just val) ->
+            case val of
+                Undefined _ -> Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+                _ -> Right val
 --------------------------------------------------------------------------------------------------------------------------------
 -- Funciones para evaluar arreglos
 --------------------------------------------------------------------------------------------------------------------------------
@@ -804,12 +813,13 @@ instance ToStr Expresion where
     -- Identificador
     evaluar (Ident token) = do
         pila@(t:ts) <- get
-        (let Just val = H.lookup (tkToStr token) t in
-            case val of
-                None -> return $ Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
-                Undefined _ -> return $ Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
-                _ ->
-                    return $ Right $ val)
+        -- (let Just val = H.lookup (tkToStr token) t in
+        --     case val of
+        --         None -> return $ Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+        --         Undefined _ -> return $ Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+        --         _ ->
+        --             return $ Right $ val)
+        return $ evaluarIdent token pila
 
     -------------------------------------------------------------------------------
     -- Expresiones aritmeticas
@@ -1561,7 +1571,7 @@ instance ToStr IncAlcanceInstr where
     -- Para evaluar la instruccion
     -- Con declaracion de variables
     evaluar (ConDeclaracion token vars insts) = do
-        VT.pushTable H.empty
+        VT.pushEmpty
         ret_vars <- evaluarVariables vars
         (case ret_vars of
             Left err -> return ret_vars
@@ -1570,7 +1580,6 @@ instance ToStr IncAlcanceInstr where
 
     -- Sin declaracion de variables
     evaluar (SinDeclaracion token insts) = do
-        VT.pushTable H.empty
         evaluarList insts
 --------------------------------------------------------------------
 -- Instrucción de Punto
