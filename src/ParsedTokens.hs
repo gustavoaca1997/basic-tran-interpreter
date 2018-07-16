@@ -43,7 +43,11 @@ analizarOpBin exparit1 token exparit2 tipo = do
                 Left err -> return ret2
 
                 Right exp_tipo2 ->
-                    if (exp_tipo1 /= exp_tipo2) then
+                    if exp_tipo1 == "int" && exp_tipo2 == "iter" then
+                        return ret1
+                    else if exp_tipo1 == "iter" && exp_tipo2 == "int" then
+                        return ret2
+                    else if (exp_tipo1 /= exp_tipo2) then
                         return $ Left $ "Operacion invalida '" ++ (tkToStr token) ++ "' de " ++ exp_tipo1 ++ " con " ++ exp_tipo2 ++ " en la posicion " ++ show (tkPos token) ++ ": error semantico"
                         else
                             return $ ret1))
@@ -73,14 +77,15 @@ expIsOfType expresion tipo (l, c) = do
         Left err -> return ret1
         Right exp_tipo1 ->
             -- Chequeamos si es del tipo correcto
+            let tipod = words exp_tipo1 !! 0 in
             if (length (words exp_tipo1) == 0) then
                 return $ Left $ "exp_tipo1 50 vacio"
-
-            else if (words exp_tipo1 !! 0) /= tipo then
+            else if tipo == "int" && tipod == "iter" then return $ ret1
+            else if tipod /= tipo then
                 return $ Left $ "Expresion de tipo " ++ exp_tipo1 ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l, c) ++ ": error semantico"
 
                 else
-                    return $ Right $ exp_tipo1
+                    return $ ret1
 
 -- Función que recibe una lista de declaraciones de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -435,10 +440,11 @@ instance ToStr Inicializacion where
                                             do
                                                 ret_id <- inSTable (tkToStr token) l c
                                                 let tipo_id = fromRight "" ret_id in
-                                                    if (tipo_id /= tipo_exp) then
-                                                        return $ Left $ "Asignacion de " ++ tipo_exp ++ " a " ++ tipo_id ++ " en la posicion " ++ show(l,c) ++ ": error semantico"
-                                                        else
-                                                            return $ ret_id)))
+                                                    if tipo_id == "int" && tipo_exp == "iter" then return ret_id
+                                                    else if tipo_id /= tipo_exp then
+                                                        return $ Left $ "Asignacion de '" ++ tipo_exp ++ "' a '" ++ tipo_id ++ "' en la posicion " ++ show(l,c) ++ ": error semantico"
+                                                    else
+                                                        return $ ret_id)))
 
     -- Declaracion
     traversal (Declaracion tkobject) =
@@ -1067,8 +1073,9 @@ instance ToStr Instruccion where
                 case ret2 of
                     Left err -> return ret2
                     Right tipo2 ->
-                        if tipo1 /= tipo2 then
-                            return $ Left $ "Asignacion de " ++ tipo2 ++ " a " ++ tipo1 ++ " en la posicion " ++ show(tkPos token) ++ ": error semantico"
+                        if tipo1 == "int" && tipo2 == "iter" then return $ Right tipo1
+                        else if tipo1 /= tipo2 then
+                            return $ Left $ "Asignacion de '" ++ tipo2 ++ "' a '" ++ tipo1 ++ "' en la posicion " ++ show(tkPos token) ++ ": error semantico"
                             else
                                 return $ Right $ tipo1)
 
