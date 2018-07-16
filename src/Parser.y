@@ -81,11 +81,11 @@ not         { TkObject TkNegacion _ _ }
 %nonassoc '>' '<' '=' '>=' '<=' '/='
 %left '+' '-'
 %left '*' '/' '%'
-%left '::'
 %left '++'
 %left "--"
-%right '$'
 %right '['
+%right '$'
+%left '::'
 %right '('
 %right '#'
 %left NEG
