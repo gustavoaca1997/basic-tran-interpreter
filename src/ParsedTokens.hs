@@ -649,7 +649,7 @@ instance ToStr Expresion where
     -------------------------------------------------------------------------------
     -------------------------------------------------------------------------------
     -- Para evaluar las expresiones
-    
+
     -------------------------------------------------------------------------------
     -- Identificador
     evaluar (Ident token) = do
@@ -911,6 +911,22 @@ instance ToStr Instruccion where
                             -- Volvemos a ejecutar el loop
                             evaluar while))
 
+    -- For
+    evaluar (ForInstr for) = do
+        let idstr = case for of ForStep _ ident _ _ _ _ -> tkToStr ident
+                                For _ ident _ _ _ -> tkToStr ident
+        from <- (case for of
+            ForStep _ _ exp_from _ _ _ -> evaluar exp_from
+            For _ _ exp_from _ _ -> evaluar exp_from)
+        (case from of
+            -- Chequeamos si hubo error en la expresion de inicio
+            Left _ -> return from
+            Right f -> do
+                -- Creamos un nuevo scope con la iteradora
+                VT.pushTable $ H.singleton idstr f
+                evaluar for
+                )
+
     -- Asignacion de Variable
     evaluar (AsignacionInstr (Asignacion token exp)) = do
         -- Evaluamos la expresion derecha
@@ -1023,38 +1039,75 @@ instance ToStr ForInstr where
             Right _ ->
                 traverseList insts)
 
+    --------------------------------------------------------------------
+    -- Para analizar semanticamente
+
+    -- For Step
+    evaluar for@(ForStep token ident exp_from exp_to exp_step instrucciones) = do
+        -- Evaluamos la expresion que indica la cota
+        -- El from solo se evalua al entrar al loop
+        to <- evaluar exp_to
+        (case to of
+            Left _ -> return to
+            Right to -> do
+                -- Evaluamos la expresion del paso
+                step <- evaluar exp_step
+                (case step of
+                    Left _ -> return step
+                    Right s -> do
+                        -- Aqui todo esta bien, hay que verificar ahora
+                        -- si la iteradora esta para inicializarla
+                        (t:_) <- get
+                        let idstr = tkToStr ident
+                        -- calculamos el valor basado en el estado de la iteradora
+                        -- liftIO $ print $ H.lookup (tkToStr token) t
+                        let Just itvalue = H.lookup idstr t
+                        ret' <- evaluarInstrucciones instrucciones
+                        (case ret' of
+                            -- Chequeamos si ocurrio un error
+                            Left _ -> return ret'
+                            --
+                            Right _ -> do
+                                (t:ts) <- get
+                                if itvalue < to then do
+                                    -- Incrementamos la variable
+                                    put $ (H.insert idstr (itvalue + s) t):ts
+                                    evaluar for
+                                else return $ Right None)))
+
+
 -- Funcion para analizar las iteraciones determinadas
 analizarIterDet :: TkObject -> TkObject -> Expresion -> Expresion -> Maybe Expresion -> SymbolTableState
 analizarIterDet token ident exp_from exp_to step =
     do
-        -- Se declara el iterador
-        pushSTable $ H.singleton (tkToStr ident) "iter"
-        -- Analizamos ambas expresiones
-        ret_from <- traversal exp_from
-        ret_to <- traversal exp_to
+            -- Se declara el iterador
+            pushSTable $ H.singleton (tkToStr ident) "iter"
+            -- Analizamos ambas expresiones
+            ret_from <- traversal exp_from
+            ret_to <- traversal exp_to
 
-        ret_step <- (case step of
-            Nothing -> return $ Right "int"
-            Just exp_step -> do traversal exp_step )
+            ret_step <- (case step of
+                Nothing -> return $ Right "int"
+                Just exp_step -> do traversal exp_step )
 
-        (case ret_from of
-            Left err -> return ret_from
-            Right tipo_from ->
-                case ret_to of
-                    Left err -> return ret_to
-                    Right tipo_to ->
-                        case ret_step of
-                            Left err -> return ret_step
-                            Right tipo_step ->
-                                -- Chequeamos los tipos de las expresiones
-                                if tipo_from /= "int" then
-                                    return $ Left $ "Limite inferior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                    else if tipo_to /= "int" then
-                                        return $ Left $ "Limite superior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                    else if tipo_step /= "int" then
-                                        return $ Left $ "El paso de la iteracion determinada no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                    else
-                                        return $ Right "")
+            (case ret_from of
+                Left err -> return ret_from
+                Right tipo_from ->
+                    case ret_to of
+                        Left err -> return ret_to
+                        Right tipo_to ->
+                            case ret_step of
+                                Left err -> return ret_step
+                                Right tipo_step ->
+                                    -- Chequeamos los tipos de las expresiones
+                                    if tipo_from /= "int" then
+                                        return $ Left $ "Limite inferior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                        else if tipo_to /= "int" then
+                                            return $ Left $ "Limite superior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                        else if tipo_step /= "int" then
+                                            return $ Left $ "El paso de la iteracion determinada no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                        else
+                                            return $ Right "")
 
 --------------------------------------------------------------------
 -- Instrucción de I/O
@@ -1106,7 +1159,7 @@ instance ToStr IOInstr where
                 return ret)
 
     -- -- Read
-    evaluar (Read token ident) = 
+    evaluar (Read token ident) =
         -- Identificador
         let key = tkToStr ident in
             do
@@ -1142,7 +1195,7 @@ instance ToStr IOInstr where
                                 _ ->
                                     error $ show (H.lookup key t))
         -- Funciones para parsear la entrada
-        where 
+        where
             -- Parsear entero
             parseInt :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
             parseInt key val (t:ts) = case (TR.readMaybe val :: Maybe Int) of
@@ -1153,7 +1206,7 @@ instance ToStr IOInstr where
                                                     return $ Right None
             -- Parsear caracter
             parseChar :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
-            parseChar key val (t:ts) = 
+            parseChar key val (t:ts) =
                 if length val /= 1 then
                     return $ Left $ "Excepcion: error al parsear entrada"
                 else
@@ -1162,7 +1215,7 @@ instance ToStr IOInstr where
                         return $ Right None
 
             -- Parsear booleano
-            parseBool :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState                        
+            parseBool :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
             parseBool key val (t:ts) =
                 case val of
                     "true" -> do
