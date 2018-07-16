@@ -33,12 +33,15 @@ analizarOpBin exparit1 token exparit2 tipo = do
     (case ret1 of
         -- Vemos si ocurrio un error
         Left err -> return ret1
+        
         Right exp_tipo1 -> do
             -- Analizamos semanticamente la segunda expresion
             ret2 <- expIsOfType exparit2 tipo (tkPos token)
+
             (case ret2 of
                 -- Vemos si ocurrio un error
                 Left err -> return ret2
+
                 Right exp_tipo2 ->
                     if (exp_tipo1 /= exp_tipo2) then
                         return $ Left $ "Operacion invalida '" ++ (tkToStr token) ++ "' de " ++ exp_tipo1 ++ " con " ++ exp_tipo2 ++ " en la posicion " ++ show (tkPos token) ++ ": error semantico"
@@ -56,6 +59,7 @@ arrayIsRight (TipoArreglo token expresion tipo_arr)= do
                 -- chequeamos si es de varias dimensiones
                 TipoArreglo _ _ _ ->
                     arrayIsRight tipo_arr
+
                 _ ->
                     return ret)
 
@@ -71,8 +75,10 @@ expIsOfType expresion tipo (l, c) = do
             -- Chequeamos si es del tipo correcto
             if (length (words exp_tipo1) == 0) then
                 return $ Left $ "exp_tipo1 50 vacio"
+
             else if (words exp_tipo1 !! 0) /= tipo then
                 return $ Left $ "Expresion de tipo " ++ exp_tipo1 ++ " no es de tipo " ++ tipo ++ " en la posicion " ++ show (l, c) ++ ": error semantico"
+
                 else
                     return $ Right $ exp_tipo1
 
@@ -90,8 +96,10 @@ varsToSTable ((Variables inits tipo):vars) auxTable = do
     ret <- initsToSTable inits tipo auxTable
     (case ret of
                 Left err -> return ret
+
                 -- Right auxTable' -> varsToSTable vars auxTable')
                 Right _ -> state(\s@(x:xs) -> runState (varsToSTable vars x) s))
+
 
 -- Función que recibe una lista de inicializacion de variables y dos estados: la tabla de símbolos global,
 -- y la tabla de símbolos correspondiente solo al scope actual.
@@ -99,7 +107,6 @@ varsToSTable ((Variables inits tipo):vars) auxTable = do
 initsToSTable :: [Inicializacion] -> Tipo -> SymbolTable -> SymbolTableState
 -- Si ya no hay variables por analizar
 initsToSTable [] _ auxTable =
-    -- pushSTable auxTable
     state (
         \s@(x:xs) ->
             (Right "", (auxTable `H.union` x):xs)
@@ -134,6 +141,7 @@ initsToSTable ((Declaracion token):xs) tipo auxTable
                 -- expIsOfType expresion "int" (tkPos token)
                 arrayIsRight tipo
             _ -> return $ Right $ (tipoToStr tipo) )
+
         (case check_type of
             Left err -> return check_type
             Right _ ->
@@ -651,6 +659,7 @@ instance ToStr Expresion where
         -- Analizamos los tipos
         ret1 <- expIsOfType expresion1 "array" (tkPos corchete)
         ret2 <- expIsOfType expresion2 "int" (tkPos corchete)
+
         -- Chequeamos por errores
         case ret1 of
             Left err -> return ret1
@@ -708,6 +717,7 @@ instance ToStr Expresion where
                 -- Division por 0
                 Right (Int 0) ->
                     return $ Left $ "\nExcepcion: Division por cero en la posicion " ++ show (tkPos token)
+
                 Right _ ->
                     evaluarOpBin expresion1 token expresion2 divType)
 
@@ -726,6 +736,7 @@ instance ToStr Expresion where
     evaluar (MenosUnario token expresion) = do
         -- Evaluamos la expresion y chequeamos si hubo un error
         ret <- evaluar expresion
+
         (case ret of
             Left err -> return ret
             Right (Int a) ->
@@ -828,21 +839,26 @@ instance ToStr Expresion where
     evaluar (IndexacionArray exp_arr token exp_indice) = do
         -- Evaluamos el arreglo a la derecha
         ret <- evaluar exp_arr
+
         -- Evaluamos el indice
         ret' <- evaluar exp_indice
+
         (case ret of
             -- CHequeamos si ocurrio un error
             Left err -> return ret
+
             -- Obtenemos el arreglo
             Right (Array arr) ->
                 case ret' of
                     -- Chequeamos si ocurrio un error
                     Left err -> return ret
+
                     -- Obtenemos el indice
                     Right (Int indice) ->
                         -- Chequeamos si la indexacion es correcta
                         if indice >= length arr || indice < 0 then
                             return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
+
                         else
                             -- Chequeamos si el elemento esta iniciaizado
                             case (arr !! indice) of
@@ -945,23 +961,29 @@ instance ToStr Instruccion where
     evaluar while@(WhileInstr token guardia insts) = do
         -- Evaluamos la guardia
         ret <- evaluar guardia
+
         (case ret of
             -- chequeamos si ocurrio un error
             Left err -> return ret
             Right (Bool val) ->
+
                 -- Revisamos si la guardia se cumple,
                 -- de no ser asi terminamos la ejecucion
                 -- del while.
                 if not val then
                     -- salimos del loop
                     return $ Right None
+
                 else do
                     -- Evaluamos las instrucciones internas
                     ret' <- evaluarInstrucciones insts
+
                     (case ret' of
                         -- Chequeamos si ocurrio un error
                         Left err -> return ret'
+
                         Right _ ->
+
                             -- Volvemos a ejecutar el loop
                             evaluar while))
 
@@ -993,16 +1015,21 @@ asignarIndexArray :: Expresion -> Type -> VT.ValuesTableState
 asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
     -- Obtenemos el estado actual de la pila
     pila@(t:ts) <- get
+
     -- Analizamos el indice
     ret_indice <- evaluar exp_indice
+
     (case ret_indice of
         -- Chequeamos si ocurrio un error
         Left err -> return ret_indice
+
         -- Obtenemos el indice
         Right (Int indice) ->
+
             (let key = tkToStr ident
                 -- Obtenemos el arreglo
                  Just (Array arr) = H.lookup key t in
+
                     do
                         -- Chequeamos si las dimensiones coinciden si
                         -- son arreglos
@@ -1026,20 +1053,27 @@ asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
 asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
     -- Obtenemos el estado actual de la pila
     pila@(t:ts) <- get
+
     -- Evaluamos el indice
     ret_indice <- evaluar exp_indice
+
     -- Y la expresion de arreglo
     ret_array <- evaluar exp_array
+
     (case ret_indice of
         -- Chequeamos si ocurrio un error
         Left err -> return ret_indice
+
         -- Obtenemos el indice
         Right (Int indice) ->
+
             case ret_array of
                 -- Chequeamos si ocurrio un error
                 Left err -> return ret_array
+
                 -- Obtenemos el arreglo
                 Right (Array arr) -> do
+
                     -- Chequeamos si las dimensiones coinciden si
                     -- son arreglos
                     check_len <- (case val of
