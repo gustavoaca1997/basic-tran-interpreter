@@ -168,6 +168,7 @@ traverseList (x:xs) = do
 ----------------------------------------------------------------------------
 --------------------FUNCIONES PARA EL INTERPRETADOR ------------------------
 ----------------------------------------------------------------------------
+
 -- Funcion que evalua una lista de instrucciones
 evaluarList :: [Instruccion] -> VT.ValuesTableState
 evaluarList [] = return $ Right None
@@ -252,6 +253,114 @@ evaluarInstrucciones (x:xs) = do
                     evaluarInstrucciones xs
                 _ ->
                     evaluarInstrucciones xs)
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+-- Funciones para evaluar arreglos
+--------------------------------------------------------------------------------------------------------------------------------
+
+-- -- Funcion para evaluar la asignacion al elemento de un arreglo
+asignarIndexArray :: Expresion -> Type -> VT.ValuesTableState
+-- Dimension final
+asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
+    -- Obtenemos el estado actual de la pila
+    pila@(t:ts) <- get
+
+    -- Analizamos el indice
+    ret_indice <- evaluar exp_indice
+
+    (case ret_indice of
+        -- Chequeamos si ocurrio un error
+        Left err -> return ret_indice
+
+        -- Obtenemos el indice
+        Right (Int indice) ->
+
+            (let key = tkToStr ident
+                -- Obtenemos el arreglo
+                 Just (Array arr) = H.lookup key t in
+                    -- Si la indexacion es inadecuada
+                    if indice >= length arr || indice < 0 then
+                        return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
+                    else do
+                        -- Chequeamos si las dimensiones coinciden si
+                        -- son arreglos
+                        check_len <- (case val of
+                            Array brr ->
+                                if length brr /= (longitud $ arr !! indice) then
+                                    return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
+                                else
+                                    return $ Right None
+                            _ ->
+                                return $ Right None)
+                        (case check_len of
+                            Left err -> return check_len
+                            Right _ ->
+                                do
+                                    -- Actualizamos el arreglo
+                                    put $ (H.insert key (Array (updateN arr indice val)) t):ts
+                                    return $ Right None)))
+
+-- Cuando se esta en una dimension superior
+asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
+    -- Obtenemos el estado actual de la pila
+    pila@(t:ts) <- get
+
+    -- Evaluamos el indice
+    ret_indice <- evaluar exp_indice
+
+    -- Y la expresion de arreglo
+    ret_array <- evaluar exp_array
+
+    (case ret_indice of
+        -- Chequeamos si ocurrio un error
+        Left err -> return ret_indice
+
+        -- Obtenemos el indice
+        Right (Int indice) ->
+
+            case ret_array of
+                -- Chequeamos si ocurrio un error
+                Left err -> return ret_array
+
+                -- Obtenemos el arreglo
+                Right (Array arr) -> 
+                    -- Si la indexacion es inadecuada
+                    if indice >= length arr || indice < 0 then
+                        return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
+                    else do
+
+                    -- Chequeamos si las dimensiones coinciden si
+                    -- son arreglos
+                    check_len <- (case val of
+                        Array brr ->
+                            if length brr /= (longitud $ arr !! indice) then
+                                return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
+                            else
+                                return $ Right None
+                        _ ->
+                            return $ Right None)
+
+                    -- revisamos si hubo un error en el chequeo de arriba
+                    (case check_len of
+                        Left err -> return check_len
+                        Right _ ->
+                            do
+                                -- Lo modificamos recursivamente
+                                asignarIndexArray exp_array $ Array $ updateN arr indice val))
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+-- Funcion que actualiza un arreglo  en la posicion n
+updateN :: [a] -> Int -> a -> [a]
+updateN [] _ _ = []
+updateN (x:xs) 0 val = val:xs
+updateN (x:xs) n val = x:(updateN xs (n-1) val)
+
+--------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+
 ----------------------------------------------------------------------------
 --------------------FUNCIONES PARA IMPRIMIR EL AST -------------------------
 ----------------------------------------------------------------------------
@@ -384,6 +493,9 @@ instance ToStr Variables where
     toStr (Variables xs tipo) tabs = putTabs tabs "DECLARACION/INICIALIZACION DE VARIABLES" ++
         printLista tabs xs ++
         toStr tipo (tabs+2)
+
+--------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 -------------------------------- EXPRESIONES ----------------------------------
@@ -681,7 +793,7 @@ instance ToStr Expresion where
     -------------------------------------------------------------------------------
     -------------------------------------------------------------------------------
     -- Para evaluar las expresiones
-    
+
     -------------------------------------------------------------------------------
     -- Identificador
     evaluar (Ident token) = do
@@ -897,6 +1009,10 @@ instance ToStr Expresion where
             -- Obtenemos el arreglo
             Right arr ->
                 return $ Right $ shift arr)
+
+--------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --------------------------------- INSTRUCCIONES --------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1018,6 +1134,25 @@ instance ToStr Instruccion where
                             -- Volvemos a ejecutar el loop
                             evaluar while))
 
+    -- For
+    evaluar (ForInstr for) = do
+        let idstr = case for of ForStep _ ident _ _ _ _ -> tkToStr ident
+                                For _ ident _ _ _ -> tkToStr ident
+        from <- (case for of
+            ForStep _ _ exp_from _ _ _ -> evaluar exp_from
+            For _ _ exp_from _ _ -> evaluar exp_from)
+        (case from of
+            -- Chequeamos si hubo error en la expresion de inicio
+            Left _ -> return from
+            Right f -> do
+                -- Creamos un nuevo scope con la iteradora
+                VT.pushTable $ H.singleton idstr f
+                evaluar for
+                )
+
+    -- If, con y sin otherwise
+    evaluar (IfInstr x) = evaluar x
+
     -- Asignacion de Variable
     evaluar (AsignacionInstr (Asignacion token exp)) = do
         -- Evaluamos la expresion derecha
@@ -1039,104 +1174,9 @@ instance ToStr Instruccion where
             Right val ->
                 asignarIndexArray exp_arr val)
 
+------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------
 
--- -- Funcion para evaluar la asignacion al elemento de un arreglo
-asignarIndexArray :: Expresion -> Type -> VT.ValuesTableState
--- Dimension final
-asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
-    -- Obtenemos el estado actual de la pila
-    pila@(t:ts) <- get
-
-    -- Analizamos el indice
-    ret_indice <- evaluar exp_indice
-
-    (case ret_indice of
-        -- Chequeamos si ocurrio un error
-        Left err -> return ret_indice
-
-        -- Obtenemos el indice
-        Right (Int indice) ->
-
-            (let key = tkToStr ident
-                -- Obtenemos el arreglo
-                 Just (Array arr) = H.lookup key t in
-                    -- Si la indexacion es inadecuada
-                    if indice >= length arr || indice < 0 then
-                        return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
-                    else do
-                        -- Chequeamos si las dimensiones coinciden si
-                        -- son arreglos
-                        check_len <- (case val of
-                            Array brr ->
-                                if length brr /= (longitud $ arr !! indice) then
-                                    return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
-                                else
-                                    return $ Right None
-                            _ ->
-                                return $ Right None)
-                        (case check_len of
-                            Left err -> return check_len
-                            Right _ ->
-                                do
-                                    -- Actualizamos el arreglo
-                                    put $ (H.insert key (Array (updateN arr indice val)) t):ts
-                                    return $ Right None)))
-
--- Cuando se esta en una dimension superior
-asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
-    -- Obtenemos el estado actual de la pila
-    pila@(t:ts) <- get
-
-    -- Evaluamos el indice
-    ret_indice <- evaluar exp_indice
-
-    -- Y la expresion de arreglo
-    ret_array <- evaluar exp_array
-
-    (case ret_indice of
-        -- Chequeamos si ocurrio un error
-        Left err -> return ret_indice
-
-        -- Obtenemos el indice
-        Right (Int indice) ->
-
-            case ret_array of
-                -- Chequeamos si ocurrio un error
-                Left err -> return ret_array
-
-                -- Obtenemos el arreglo
-                Right (Array arr) -> 
-                    -- Si la indexacion es inadecuada
-                    if indice >= length arr || indice < 0 then
-                        return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
-                    else do
-
-                    -- Chequeamos si las dimensiones coinciden si
-                    -- son arreglos
-                    check_len <- (case val of
-                        Array brr ->
-                            if length brr /= (longitud $ arr !! indice) then
-                                return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
-                            else
-                                return $ Right None
-                        _ ->
-                            return $ Right None)
-
-                    -- revisamos si hubo un error en el chequeo de arriba
-                    (case check_len of
-                        Left err -> return check_len
-                        Right _ ->
-                            do
-                                -- Lo modificamos recursivamente
-                                asignarIndexArray exp_array $ Array $ updateN arr indice val))
-
--- Funcion que actualiza un arreglo  en la posicion n
-updateN :: [a] -> Int -> a -> [a]
-updateN [] _ _ = []
-updateN (x:xs) 0 val = val:xs
-updateN (x:xs) n val = x:(updateN xs (n-1) val)
---------------------------------------------------------------------
---------------------------------------------------------------------
 -- Instrucción de If
 data IfInstr =
     If Expresion TkObject [Instruccion]
@@ -1184,7 +1224,50 @@ instance ToStr IfInstr where
                                 Right _ -> do
                                     traverseList insts2)
 
---------------------------------------------------------------------
+    --------------------------------------------------------------------
+    -- Para analizar semanticamente el arbol
+
+    -- If
+    evaluar (If guardia _ insts) =
+        evaluarCondicional guardia insts Nothing
+
+    -- If otherwise
+    evaluar (IfOtherwise guardia _ inst1 inst2) = do
+        evaluarCondicional guardia inst1 $ Just inst2
+
+--------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+evaluarCondicional :: Expresion  -> [Instruccion] -> Maybe [Instruccion] -> VT.ValuesTableState
+evaluarCondicional guardia theninstr otherwiseinstr = do
+    ret <- evaluar guardia
+    (case ret of
+        -- El unico error al evaluar una bool expr es
+        -- variable no inicializada
+        Left err -> return ret
+        Right ret ->
+            -- Si la guardia evalua a false, no hacemos nada
+            let Bool bool = ret in
+            if not bool then (case otherwiseinstr of
+                Nothing -> return $ Right None
+                Just instrs -> do
+                    ret' <- evaluarInstrucciones instrs
+                    (case ret' of
+                        Left err -> return ret'
+                        Right _ -> return $ Right None))
+            else do
+                -- Evaluamos las instrucciones de adentro,
+                -- si no hay errores terminamos con None
+                ret' <- evaluarInstrucciones theninstr
+                (case ret' of
+                    Left err -> return ret'
+                    Right _ ->
+                        return $ Right None))
+--------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------
 -- Instrucción de For
 data ForInstr =
     For
@@ -1234,38 +1317,86 @@ instance ToStr ForInstr where
             Right _ ->
                 traverseList insts)
 
+    --------------------------------------------------------------------
+    -- Para analizar semanticamente
+
+    -- For Step
+    evaluar for@(ForStep token ident _ exp_to exp_step instrucciones) =
+        evaluarIterDet token ident exp_to (Just exp_step) instrucciones
+
+    -- For sin step
+    evaluar for@(For token ident _ exp_to instrucciones) =
+        evaluarIterDet token ident exp_to Nothing instrucciones
+
 -- Funcion para analizar las iteraciones determinadas
 analizarIterDet :: TkObject -> TkObject -> Expresion -> Expresion -> Maybe Expresion -> SymbolTableState
 analizarIterDet token ident exp_from exp_to step =
     do
-        -- Se declara el iterador
-        pushSTable $ H.singleton (tkToStr ident) "iter"
-        -- Analizamos ambas expresiones
-        ret_from <- traversal exp_from
-        ret_to <- traversal exp_to
+            -- Se declara el iterador
+            pushSTable $ H.singleton (tkToStr ident) "iter"
+            -- Analizamos ambas expresiones
+            ret_from <- traversal exp_from
+            ret_to <- traversal exp_to
 
-        ret_step <- (case step of
-            Nothing -> return $ Right "int"
-            Just exp_step -> do traversal exp_step )
+            ret_step <- (case step of
+                Nothing -> return $ Right "int"
+                Just exp_step -> do traversal exp_step )
 
-        (case ret_from of
-            Left err -> return ret_from
-            Right tipo_from ->
-                case ret_to of
-                    Left err -> return ret_to
-                    Right tipo_to ->
-                        case ret_step of
-                            Left err -> return ret_step
-                            Right tipo_step ->
-                                -- Chequeamos los tipos de las expresiones
-                                if tipo_from /= "int" then
-                                    return $ Left $ "Limite inferior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                    else if tipo_to /= "int" then
-                                        return $ Left $ "Limite superior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                    else if tipo_step /= "int" then
-                                        return $ Left $ "El paso de la iteracion determinada no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
-                                    else
-                                        return $ Right "")
+            (case ret_from of
+                Left err -> return ret_from
+                Right tipo_from ->
+                    case ret_to of
+                        Left err -> return ret_to
+                        Right tipo_to ->
+                            case ret_step of
+                                Left err -> return ret_step
+                                Right tipo_step ->
+                                    -- Chequeamos los tipos de las expresiones
+                                    if tipo_from /= "int" then
+                                        return $ Left $ "Limite inferior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                        else if tipo_to /= "int" then
+                                            return $ Left $ "Limite superior no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                        else if tipo_step /= "int" then
+                                            return $ Left $ "El paso de la iteracion determinada no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
+                                        else
+                                            return $ Right "")
+
+-- Funcion que evalua la instrucciones de iteracion determinadas
+evaluarIterDet :: TkObject -> TkObject -> Expresion -> Maybe Expresion -> [Instruccion] -> VT.ValuesTableState
+evaluarIterDet token ident exp_to exp_step instrucciones = do
+    -- Evaluamos la expresion que indica la cota
+    -- El from solo se evalua al entrar al loop
+    to <- evaluar exp_to
+    (case to of
+        Left _ -> return to
+        Right to -> do
+            -- Evaluamos la expresion del paso
+            step <- (case exp_step of
+                Nothing -> return $ Right $ Int 1
+                Just s -> evaluar s)
+            (case step of
+                Left _ -> return step
+                Right s ->
+                    if s == Int 0 then return $ Left $ "Excepcion: valor de paso igual a 0 en la instruccion de iteracion determinada en la posicion " ++ (show $ tkPos token)
+                    else do
+                        -- Aqui todo esta bien
+                        (t:_) <- get
+                        let idstr = tkToStr ident
+                        -- calculamos el valor basado en el estado de la iteradora
+                        -- liftIO $ print $ H.lookup (tkToStr token) t
+                        let Just itvalue = H.lookup idstr t
+                        ret' <- evaluarInstrucciones instrucciones
+                        (case ret' of
+                            -- Chequeamos si ocurrio un error
+                            Left _ -> return ret'
+                            --
+                            Right _ -> do
+                                (t:ts) <- get
+                                if itvalue < to then do
+                                    -- Incrementamos la variable
+                                    put $ (H.insert idstr (itvalue + s) t):ts
+                                    evaluarIterDet token ident exp_to exp_step instrucciones
+                                else return $ Right None)))
 
 --------------------------------------------------------------------
 -- Instrucción de I/O
@@ -1317,7 +1448,7 @@ instance ToStr IOInstr where
                 return ret)
 
     -- -- Read
-    evaluar (Read token ident) = 
+    evaluar (Read token ident) =
         -- Identificador
         let key = tkToStr ident in
             do
@@ -1353,7 +1484,7 @@ instance ToStr IOInstr where
                                 _ ->
                                     error $ show (H.lookup key t))
         -- Funciones para parsear la entrada
-        where 
+        where
             -- Parsear entero
             parseInt :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
             parseInt key val (t:ts) = case (TR.readMaybe val :: Maybe Int) of
@@ -1364,7 +1495,7 @@ instance ToStr IOInstr where
                                                     return $ Right None
             -- Parsear caracter
             parseChar :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
-            parseChar key val (t:ts) = 
+            parseChar key val (t:ts) =
                 if length val /= 1 then
                     return $ Left $ "Excepcion: error al parsear entrada"
                 else
@@ -1373,7 +1504,7 @@ instance ToStr IOInstr where
                         return $ Right None
 
             -- Parsear booleano
-            parseBool :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState                        
+            parseBool :: String -> String -> [VT.ValuesTable] -> VT.ValuesTableState
             parseBool key val (t:ts) =
                 case val of
                     "true" -> do
