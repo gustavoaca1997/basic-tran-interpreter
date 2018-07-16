@@ -33,7 +33,7 @@ analizarOpBin exparit1 token exparit2 tipo = do
     (case ret1 of
         -- Vemos si ocurrio un error
         Left err -> return ret1
-        
+
         Right exp_tipo1 -> do
             -- Analizamos semanticamente la segunda expresion
             ret2 <- expIsOfType exparit2 tipo (tkPos token)
@@ -831,7 +831,7 @@ instance ToStr Expresion where
             Right a -> (case a of
                 Char x -> return $ Right $ Char $ (toEnum $ ((fromEnum x) - 1) :: Char)))
 
-                -- | IndexacionArray Expresion TkObject Expresion
+    
     -------------------------------------------------------------------------------
     -- Expresiones de arreglos
 
@@ -867,8 +867,26 @@ instance ToStr Expresion where
                                 x ->
                                     return $ Right x)
 
+    -- Concatenacion
+    evaluar (ConcatenacionArray exp_arr1 token exp_arr2) = do
+        -- Evaluamos las expresiones de arreglos
+        ret1 <- evaluar exp_arr1
+        ret2 <- evaluar exp_arr2
 
---------------------------------- INSTRUCCIONES -------------------------------
+        -- Chequeamos si ocurrieron errores
+        (case ret1 of
+            Left err -> return ret1
+            -- Obtenemos el primer arreglo
+            Right (Array arr1) ->
+                case ret2 of
+                    Left err -> return ret2
+                    -- Obtenemos el segundo arreglo
+                    Right (Array arr2) ->
+                        -- Retornamos la concatenacion de ambos
+                        return $ Right $ Array $ arr1 ++ arr2)
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------- INSTRUCCIONES --------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Instruccion
 data Instruccion =
     IfInstr IfInstr
