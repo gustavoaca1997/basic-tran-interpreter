@@ -60,3 +60,10 @@ modType (Int a) (Int b) = Int $ a `mod` b
 -- Funcion que retorna la longitud de un arreglo
 longitud :: Type -> Int
 longitud (Array xs) = length xs
+
+-- Funcion que le hace shift a un arreglo
+shift :: Type -> Type
+shift (Array arr) =
+    let xs = init arr
+        x = last arr in
+            Array (x:xs)

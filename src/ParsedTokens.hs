@@ -884,6 +884,19 @@ instance ToStr Expresion where
                     Right (Array arr2) ->
                         -- Retornamos la concatenacion de ambos
                         return $ Right $ Array $ arr1 ++ arr2)
+
+    -- Shift
+    evaluar (ShiftArray token exp_arr) = do
+        -- Evaluamos la expresion de arreglo
+        ret <- evaluar exp_arr
+
+        -- Chequeamos si ocurrio un error
+        (case ret of
+            Left err -> return ret
+
+            -- Obtenemos el arreglo
+            Right arr ->
+                return $ Right $ shift arr)
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 --------------------------------- INSTRUCCIONES --------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
