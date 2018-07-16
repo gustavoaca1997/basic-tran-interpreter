@@ -261,13 +261,13 @@ evaluarInstrucciones (x:xs) = do
 
 -- Funcion que obtiene el valor de una variable
 evaluarIdent :: TkObject -> [VT.ValuesTable] -> Either String Type
-evaluarIdent token [] = Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+evaluarIdent token [] = Left $ "Excepcion: 1Variable no inicializada en la posicion " ++ show (tkPos token)
 evaluarIdent token (t:ts) =
     case (H.lookup (tkToStr token) t) of
-        Nothing -> Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+        Nothing -> evaluarIdent token ts
         ret@(Just val) ->
             case val of
-                Undefined _ -> Left $ "Excepcion: Variable no inicializada en la posicion " ++ show (tkPos token)
+                Undefined _ -> Left $ "Excepcion: 3Variable no inicializada en la posicion " ++ show (tkPos token)
                 _ -> Right val
 --------------------------------------------------------------------------------------------------------------------------------
 -- Funciones para evaluar arreglos
@@ -292,28 +292,33 @@ asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
 
             (let key = tkToStr ident
                 -- Obtenemos el arreglo
-                 Just (Array arr) = H.lookup key t in
-                    -- Si la indexacion es inadecuada
-                    if indice >= length arr || indice < 0 then
-                        return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
-                    else do
-                        -- Chequeamos si las dimensiones coinciden si
-                        -- son arreglos
-                        check_len <- (case val of
-                            Array brr ->
-                                if length brr /= (longitud $ arr !! indice) then
-                                    return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
-                                else
-                                    return $ Right None
-                            _ ->
-                                return $ Right None)
-                        (case check_len of
-                            Left err -> return check_len
-                            Right _ ->
-                                do
-                                    -- Actualizamos el arreglo
-                                    put $ (H.insert key (Array (updateN arr indice val)) t):ts
-                                    return $ Right None)))
+                --  Just (Array arr) = H.lookup key t in
+                    in
+                        case (evaluarIdent ident pila) of
+                            ret@(Left err) -> return ret
+                            Right (Array arr) ->
+                                -- Si la indexacion es inadecuada
+                                if indice >= length arr || indice < 0 then
+                                    return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
+                                else do
+                                    -- Chequeamos si las dimensiones coinciden si
+                                    -- son arreglos
+                                    check_len <- (case val of
+                                        Array brr ->
+                                            if length brr /= (longitud $ arr !! indice) then
+                                                return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
+                                            else
+                                                return $ Right None
+                                        _ ->
+                                            return $ Right None)
+                                    (case check_len of
+                                        Left err -> return check_len
+                                        Right _ ->
+                                            do
+                                                -- Actualizamos el arreglo
+                                                -- put $ (H.insert key (Array (updateN arr indice val)) t):ts
+                                                put $ evaluarAsignacion ident pila (Array (updateN arr indice val))
+                                                return $ Right None)))
 
 -- Cuando se esta en una dimension superior
 asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
@@ -1180,7 +1185,8 @@ instance ToStr Instruccion where
             Right val -> do
                 -- Actualizamos la tabla de simbolos
                 pila@(t:ts) <- get
-                put $ (H.insert (tkToStr token) val t):ts
+                -- put $ (H.insert (tkToStr token) val t):ts
+                put $ evaluarAsignacion token pila val
                 return $ Right None)
 
     -- Asignacion del elemento de un arreglo
@@ -1474,28 +1480,29 @@ instance ToStr IOInstr where
                 -- Obtenemos el estado actual de la pila
                 pila@(t:ts) <- get
                 -- Revisamos el valor del identificador
-                (case (H.lookup key t) of
+                -- (case (H.lookup key t) of
+                (case (evaluarIdent ident pila) of    
                                 ----------------------------------------------------------------------------
                                 -- Si tiene un valor
                                 -- entero
-                                Just (Int _) ->
+                                Right (Int _) ->
                                     parseInt key val pila
                                 -- caracter
-                                Just (Char _) ->
+                                Right (Char _) ->
                                     parseChar key val pila
                                 -- booleano
-                                Just (Bool _) ->
+                                Right (Bool _) ->
                                     parseBool key val pila
                                 ----------------------------------------------------------------------------
                                 -- Si no tiene un valor, pero es de tipo
                                 -- entero
-                                Just (Undefined "int") ->
+                                Right (Undefined "int") ->
                                     parseInt key val pila
                                 -- caracter
-                                Just (Undefined "char") ->
+                                Right (Undefined "char") ->
                                     parseChar key val pila
                                 -- booleano
-                                Just (Undefined "bool") ->
+                                Right (Undefined "bool") ->
                                     parseBool key val pila
                                 ----------------------------------------------------------------------------
                                 _ ->
@@ -1532,6 +1539,16 @@ instance ToStr IOInstr where
                         return $ Right None
                     _ ->
                         return $ Left $ "Excepcion: error al parsear entrada"
+
+
+-- Funcion que inserta en el scope correcto
+evaluarAsignacion :: TkObject -> [VT.ValuesTable] -> Type -> [VT.ValuesTable]
+evaluarAsignacion _ [] _ = []
+evaluarAsignacion token (t:ts) valor=
+    case (H.lookup (tkToStr token) t) of
+        Nothing -> t:(evaluarAsignacion token ts valor)
+        Just val ->
+            (H.insert (tkToStr token) valor t):ts
 ----------------------------------------------------------------------------
 ----------------------------------------------------------------------------
 -- Instrucción de Alcance
