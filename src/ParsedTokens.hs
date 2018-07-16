@@ -1043,9 +1043,12 @@ instance ToStr ForInstr where
     -- Para analizar semanticamente
 
     -- For Step
-    evaluar for@(ForStep token ident _ exp_to exp_step instrucciones) = do
+    evaluar for@(ForStep token ident _ exp_to exp_step instrucciones) =
         evaluarIterDet token ident exp_to (Just exp_step) instrucciones
 
+    -- For sin step
+    evaluar for@(For token ident _ exp_to instrucciones) =
+        evaluarIterDet token ident exp_to Nothing instrucciones
 
 -- Funcion para analizar las iteraciones determinadas
 analizarIterDet :: TkObject -> TkObject -> Expresion -> Expresion -> Maybe Expresion -> SymbolTableState
