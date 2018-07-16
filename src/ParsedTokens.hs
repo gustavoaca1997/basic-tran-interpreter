@@ -1392,18 +1392,18 @@ evaluarIterDet token ident exp_to exp_step instrucciones = do
                         -- calculamos el valor basado en el estado de la iteradora
                         -- liftIO $ print $ H.lookup (tkToStr token) t
                         let Just itvalue = H.lookup idstr t
-                        ret' <- evaluarInstrucciones instrucciones
-                        (case ret' of
-                            -- Chequeamos si ocurrio un error
-                            Left _ -> return ret'
-                            --
-                            Right _ -> do
-                                (t:ts) <- get
-                                if itvalue < to then do
+                        if itvalue < to then do
+                            ret' <- evaluarInstrucciones instrucciones
+                            (case ret' of
+                                -- Chequeamos si ocurrio un error
+                                Left _ -> return ret'
+                                --
+                                Right _ -> do
+                                    (t:ts) <- get
                                     -- Incrementamos la variable
                                     put $ (H.insert idstr (itvalue + s) t):ts
-                                    evaluarIterDet token ident exp_to exp_step instrucciones
-                                else return $ Right None)))
+                                    evaluarIterDet token ident exp_to exp_step instrucciones)
+                        else return $ Right None))
 
 --------------------------------------------------------------------
 -- Instrucción de I/O
