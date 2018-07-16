@@ -7,9 +7,11 @@ import Control.Monad.State
 import SymbolTable
 import Data.HashMap.Lazy
 import Interprete
+import System.IO
 
 main :: IO()
 main = do
+    hSetBuffering stdout NoBuffering
     args <- getArgs
     filecontents <- readFile $ head args
     let tokens = scanTokens filecontents
