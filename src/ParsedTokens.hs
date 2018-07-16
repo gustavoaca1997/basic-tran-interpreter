@@ -1043,37 +1043,8 @@ instance ToStr ForInstr where
     -- Para analizar semanticamente
 
     -- For Step
-    evaluar for@(ForStep token ident exp_from exp_to exp_step instrucciones) = do
-        -- Evaluamos la expresion que indica la cota
-        -- El from solo se evalua al entrar al loop
-        to <- evaluar exp_to
-        (case to of
-            Left _ -> return to
-            Right to -> do
-                -- Evaluamos la expresion del paso
-                step <- evaluar exp_step
-                (case step of
-                    Left _ -> return step
-                    Right s -> do
-                        -- Aqui todo esta bien, hay que verificar ahora
-                        -- si la iteradora esta para inicializarla
-                        (t:_) <- get
-                        let idstr = tkToStr ident
-                        -- calculamos el valor basado en el estado de la iteradora
-                        -- liftIO $ print $ H.lookup (tkToStr token) t
-                        let Just itvalue = H.lookup idstr t
-                        ret' <- evaluarInstrucciones instrucciones
-                        (case ret' of
-                            -- Chequeamos si ocurrio un error
-                            Left _ -> return ret'
-                            --
-                            Right _ -> do
-                                (t:ts) <- get
-                                if itvalue < to then do
-                                    -- Incrementamos la variable
-                                    put $ (H.insert idstr (itvalue + s) t):ts
-                                    evaluar for
-                                else return $ Right None)))
+    evaluar for@(ForStep token ident _ exp_to exp_step instrucciones) = do
+        evaluarIterDet token ident exp_to (Just exp_step) instrucciones
 
 
 -- Funcion para analizar las iteraciones determinadas
@@ -1108,6 +1079,43 @@ analizarIterDet token ident exp_from exp_to step =
                                             return $ Left $ "El paso de la iteracion determinada no es una expresion aritmetica, en la posicion " ++ show (tkPos token) ++ ": error semantico"
                                         else
                                             return $ Right "")
+
+-- Funcion que evalua la instrucciones de iteracion determinadas
+evaluarIterDet :: TkObject -> TkObject -> Expresion -> Maybe Expresion -> [Instruccion] -> VT.ValuesTableState
+evaluarIterDet token ident exp_to exp_step instrucciones = do
+    -- Evaluamos la expresion que indica la cota
+    -- El from solo se evalua al entrar al loop
+    to <- evaluar exp_to
+    (case to of
+        Left _ -> return to
+        Right to -> do
+            -- Evaluamos la expresion del paso
+            step <- (case exp_step of
+                Nothing -> return $ Right $ Int 1
+                Just s -> evaluar s)
+            (case step of
+                Left _ -> return step
+                Right s ->
+                    if s == Int 0 then return $ Left $ "Excepcion: valor de paso igual a 0 en la instruccion de iteracion determinada en la posicion " ++ (show $ tkPos token)
+                    else do
+                        -- Aqui todo esta bien
+                        (t:_) <- get
+                        let idstr = tkToStr ident
+                        -- calculamos el valor basado en el estado de la iteradora
+                        -- liftIO $ print $ H.lookup (tkToStr token) t
+                        let Just itvalue = H.lookup idstr t
+                        ret' <- evaluarInstrucciones instrucciones
+                        (case ret' of
+                            -- Chequeamos si ocurrio un error
+                            Left _ -> return ret'
+                            --
+                            Right _ -> do
+                                (t:ts) <- get
+                                if itvalue < to then do
+                                    -- Incrementamos la variable
+                                    put $ (H.insert idstr (itvalue + s) t):ts
+                                    evaluarIterDet token ident exp_to exp_step instrucciones
+                                else return $ Right None)))
 
 --------------------------------------------------------------------
 -- Instrucción de I/O
