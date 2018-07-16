@@ -83,11 +83,11 @@ not         { TkObject TkNegacion _ _ }
 %left '*' '/' '%'
 %left '++'
 %left "--"
+%right '#'
 %right '['
 %right '$'
 %left '::'
 %right '('
-%right '#'
 %left NEG
 -- Grammar
 %%
