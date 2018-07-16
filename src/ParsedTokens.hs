@@ -1004,9 +1004,23 @@ asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
                 -- Obtenemos el arreglo
                  Just (Array arr) = H.lookup key t in
                     do
-                        -- Actualizamos el arreglo
-                        put $ (H.insert key (Array (updateN arr indice val)) t):ts
-                        return $ Right None))
+                        -- Chequeamos si las dimensiones coinciden si
+                        -- son arreglos
+                        check_len <- (case val of
+                            Array brr ->
+                                if length brr /= (longitud $ arr !! indice) then
+                                    return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
+                                else
+                                    return $ Right None
+                            _ ->
+                                return $ Right None)
+                        (case check_len of
+                            Left err -> return check_len
+                            Right _ ->
+                                do
+                                    -- Actualizamos el arreglo
+                                    put $ (H.insert key (Array (updateN arr indice val)) t):ts
+                                    return $ Right None)))
 
 -- Cuando se esta en una dimension superior
 asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
@@ -1026,8 +1040,24 @@ asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
                 Left err -> return ret_array
                 -- Obtenemos el arreglo
                 Right (Array arr) -> do
-                    -- Lo modificamos recursivamente
-                    asignarIndexArray exp_array $ Array $ updateN arr indice val)
+                    -- Chequeamos si las dimensiones coinciden si
+                    -- son arreglos
+                    check_len <- (case val of
+                        Array brr ->
+                            if length brr /= (longitud $ arr !! indice) then
+                                return $ Left $ "Excepcion: Reasignacion de arreglos de distintas longitudes en la posicion " ++ show (tkPos token)
+                            else
+                                return $ Right None
+                        _ ->
+                            return $ Right None)
+
+                    -- revisamos si hubo un error en el chequeo de arriba
+                    (case check_len of
+                        Left err -> return check_len
+                        Right _ ->
+                            do
+                                -- Lo modificamos recursivamente
+                                asignarIndexArray exp_array $ Array $ updateN arr indice val))
 
 -- Funcion que actualiza un arreglo  en la posicion n
 updateN :: [a] -> Int -> a -> [a]

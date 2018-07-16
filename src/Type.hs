@@ -56,3 +56,7 @@ divType (Int a) (Int b) = Int $ a `div` b
 -- Funcion para el modulo
 modType :: Type -> Type -> Type
 modType (Int a) (Int b) = Int $ a `mod` b
+
+-- Funcion que retorna la longitud de un arreglo
+longitud :: Type -> Int
+longitud (Array xs) = length xs
