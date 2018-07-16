@@ -1060,8 +1060,10 @@ asignarIndexArray (IndexacionArray (Ident ident) token exp_indice) val = do
             (let key = tkToStr ident
                 -- Obtenemos el arreglo
                  Just (Array arr) = H.lookup key t in
-
-                    do
+                    -- Si la indexacion es inadecuada
+                    if indice >= length arr || indice < 0 then
+                        return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
+                    else do
                         -- Chequeamos si las dimensiones coinciden si
                         -- son arreglos
                         check_len <- (case val of
@@ -1103,7 +1105,11 @@ asignarIndexArray (IndexacionArray exp_array token exp_indice) val = do
                 Left err -> return ret_array
 
                 -- Obtenemos el arreglo
-                Right (Array arr) -> do
+                Right (Array arr) -> 
+                    -- Si la indexacion es inadecuada
+                    if indice >= length arr || indice < 0 then
+                        return $ Left $ "Excepcion: Indice fuera de rango en la posicion " ++ show (tkPos token)
+                    else do
 
                     -- Chequeamos si las dimensiones coinciden si
                     -- son arreglos
