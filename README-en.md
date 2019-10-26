@@ -25,7 +25,7 @@ To filter errors, a token called `TkErr` was created. When we invoke `alexScanTo
 
 #### Additional libraries
 
-Any. Although certain functions could be imported, it was decided, to practice the language more, that we ourselves implement those functions.
+None. Although certain functions could be imported, it was decided, to practice the language more, that we ourselves implement those functions.
 
 ## Parser
 
