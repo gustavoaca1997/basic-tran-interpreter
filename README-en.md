@@ -42,7 +42,7 @@ The use of Happy focused us only on determining the grammar of the language.
 
 Through Happy, the grammar that defines the BasicTrans language was formed. This had to be modified during the development of the parser to eliminate conflicts _shift/reduce_ and _reduce/reduce_.
 
-A `Parsed` data type was defined, which instance to the` Monad` typeclass, in order to know if an error occurred or not parsing.
+A `Parsed` data type was defined, which instantiates the` Monad` typeclass, in order to know if an error occurred or not while parsing.
 
 The `ToStr` typeclass was defined, so that the Abstract Syntactic Tree could be printed on the console, which is instantiated by the types of data that define the analyzed tokens.
 
