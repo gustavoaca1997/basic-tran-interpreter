@@ -21,7 +21,7 @@ Alex provides several wrappers, but the one of our interest was `posn` because i
 
 To implement the `show` of each token, a type of data` TkObject` was created that can be seen as an ordered pair whose first coordinate is a token and the second is its `AlexPosn`. Thus, it was avoided having to write a `show` for each token.
 
-To filter errors, a token called `TkErr` was created. When we invoke `alexScanTokens` we have an arrangement of `TkObject`'s. To see if there is an error, we only filter the TkObjects and if the resulting fix is empty, there are no errors and each token is printed in the described format. Otherwise, only errors are printed.
+To filter errors, a token called `TkErr` was created. When we invoke `alexScanTokens` we have an array of `TkObject`'s. To see if there is an error, we only filter the TkObjects and if the resulting array is empty, there are no errors and each token is printed in the described format. Otherwise, only errors are printed.
 
 #### Additional libraries
 
